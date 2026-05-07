@@ -1,0 +1,27 @@
+[project]
+name = "cronograph"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.136.1",
+    "httpx>=0.28.1",
+    "polars>=1.40.1",
+    "psycopg2-binary>=2.9.12",
+    "pydantic-settings>=2.14.0",
+    "sqlalchemy>=2.0.49",
+    "sse-starlette>=3.4.2",
+    "structlog>=25.5.0",
+    "uvicorn>=0.46.0",
+]
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.152.4",
+    "mypy>=2.0.0",
+    "pytest>=9.0.3",
+    "ruff>=0.15.12",
+]
