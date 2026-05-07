@@ -30,6 +30,7 @@ export function ExtractionProgress({ jobId }: { jobId: string }) {
 
     eventSource.addEventListener("done", () => {
       setData(prev => ({ ...prev, status: "done", progress: 1 } as ProgressData));
+      window.dispatchEvent(new CustomEvent("refresh-history"));
       eventSource.close();
     });
 

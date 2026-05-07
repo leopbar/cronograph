@@ -43,6 +43,15 @@ async def start_extraction(request: ExtractionPreviewRequest, db: AsyncSession =
     await db.refresh(job)
     return {"job_id": str(job.id)}
 
+from cronograph.models.coverage import Coverage
+from sqlalchemy import select
+
+@router.get("/coverage")
+async def get_coverage_history(db: AsyncSession = Depends(get_db)):
+    stmt = select(Coverage).order_by(Coverage.symbol, Coverage.range_from.desc())
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
 @router.get("/{job_id}/stream")
 async def stream_extraction(job_id: str, db: AsyncSession = Depends(get_db)):
     service = ExtractionService(db, SessionLocal)

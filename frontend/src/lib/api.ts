@@ -39,3 +39,15 @@ export async function startExtraction(request: ExtractionPreviewRequest): Promis
   if (!response.ok) throw new Error("Failed to start extraction");
   return response.json();
 }
+export interface Coverage {
+  symbol: string;
+  interval: string;
+  range_from: string;
+  range_to: string;
+}
+
+export async function getCoverageHistory(): Promise<Coverage[]> {
+  const response = await fetch(`${API_URL}/extractions/coverage`);
+  if (!response.ok) return [];
+  return response.json();
+}

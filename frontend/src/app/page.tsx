@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ExtractionForm } from "@/components/features/extraction-form";
+import { ExtractionHistory } from "@/components/features/extraction-history";
 import { AnalysisForm, AnalysisRequest } from "@/components/features/analysis-form";
 import { CumulativeHistogram, DiscreteHistogram, HistogramItem } from "@/components/features/histogram-charts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,9 +79,12 @@ export default function Home() {
           </div>
         </FadeIn>
 
-        <TabsContent value="extract">
+        <TabsContent value="extract" className="space-y-8">
           <FadeIn delay={0.2}>
             <ExtractionForm />
+          </FadeIn>
+          <FadeIn delay={0.3}>
+            <ExtractionHistory />
           </FadeIn>
         </TabsContent>
 
@@ -161,4 +165,3 @@ function StatCard({ label, value }: { label: string; value: number | string }) {
     </Card>
   );
 }
-

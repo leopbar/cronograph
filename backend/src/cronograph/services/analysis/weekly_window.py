@@ -64,20 +64,20 @@ class WeeklyWindowAnalysis:
         exits = df.filter(
             (pl.col("weekday") == exit_weekday) & 
             (pl.col("time") == exit_time)
-        ).select(["open_time", "close"])
+        ).select([
+            pl.col("open_time").alias("exit_open_time"),
+            "close"
+        ])
 
         # 4. Join entries and exits
-        # We want to pair each entry with the *next* available exit
-        # A simple way is to use join_asof
         results = entries.join_asof(
             exits,
             left_on="open_time",
-            right_on="open_time",
+            right_on="exit_open_time",
             strategy="forward"
         ).drop_nulls()
 
         # 5. Calculate diff
-        # diff = max(0, close_exit - open_entry)
         results = results.with_columns([
             ((pl.col("close") - pl.col("open")).clip(lower_bound=0)).alias("diff")
         ])
@@ -85,7 +85,7 @@ class WeeklyWindowAnalysis:
         return [
             WeeklyResult(
                 entry_time=row["open_time"],
-                exit_time=row["open_time_right"], # open_time from exits
+                exit_time=row["exit_open_time"],
                 open_entry=row["open"],
                 close_exit=row["close"],
                 diff=row["diff"]
