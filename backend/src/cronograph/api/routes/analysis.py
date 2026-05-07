@@ -45,6 +45,5 @@ async def run_weekly_analysis(
             detail="No data found for the selected window. Please extract data first."
         )
 
-    diffs = [r.diff for r in results]
-    response = HistogramService.generate(diffs, request.bucket_size)
+    response = HistogramService.generate(results, request.bucket_size)
     return response

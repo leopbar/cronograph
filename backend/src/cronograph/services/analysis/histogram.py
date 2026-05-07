@@ -7,6 +7,14 @@ class HistogramData(BaseModel):
     value: float
     count: int
 
+class WeeklyResult(BaseModel):
+    entry_time: str
+    exit_time: str
+    open_entry: float
+    close_exit: float
+    diff: float
+    pct_change: float
+
 class AnalysisResponse(BaseModel):
     total_weeks: int
     mean: float
@@ -15,17 +23,21 @@ class AnalysisResponse(BaseModel):
     max: float
     cumulative: List[HistogramData]
     discrete: List[HistogramData]
+    results: List[WeeklyResult]
 
 class HistogramService:
     @staticmethod
-    def generate(diffs: List[float], bucket_size: int = 1000) -> AnalysisResponse:
-        if not diffs:
+    def generate(results: List[WeeklyResult], bucket_size: int = 1000) -> AnalysisResponse:
+        if not results:
             return AnalysisResponse(
                 total_weeks=0, mean=0, median=0, p90=0, max=0, 
-                cumulative=[], discrete=[]
+                cumulative=[], discrete=[], results=[]
             )
 
-        df = pl.DataFrame({"diff": diffs})
+        diffs = [r.diff for r in results]
+        # For histogram calculations, we use the clipped diffs (non-negative)
+        clipped_diffs = [max(0, d) for d in diffs]
+        df = pl.DataFrame({"diff": clipped_diffs})
         
         # Stats
         total_weeks = len(diffs)
@@ -70,5 +82,6 @@ class HistogramService:
             p90=round(p90_val, 2),
             max=round(max_val, 2),
             cumulative=cumulative_data,
-            discrete=discrete_data
+            discrete=discrete_data,
+            results=results
         )

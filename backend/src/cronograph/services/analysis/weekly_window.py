@@ -1,17 +1,11 @@
 import polars as pl
-from datetime import datetime, time
+from datetime import time
 from typing import List
-from pydantic import BaseModel
+from cronograph.services.analysis.histogram import WeeklyResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from cronograph.models.candle import Candle
 
-class WeeklyResult(BaseModel):
-    entry_time: datetime
-    exit_time: datetime
-    open_entry: float
-    close_exit: float
-    diff: float
 
 class WeeklyWindowAnalysis:
     def __init__(self, db: AsyncSession):
@@ -77,18 +71,20 @@ class WeeklyWindowAnalysis:
             strategy="forward"
         ).drop_nulls()
 
-        # 5. Calculate diff
+        # 5. Calculate diff and pct change
         results = results.with_columns([
-            ((pl.col("close") - pl.col("open")).clip(lower_bound=0)).alias("diff")
+            (pl.col("close") - pl.col("open")).alias("diff"),
+            ((pl.col("close") - pl.col("open")) / pl.col("open") * 100).alias("pct_change")
         ])
 
         return [
             WeeklyResult(
-                entry_time=row["open_time"],
-                exit_time=row["exit_open_time"],
-                open_entry=row["open"],
-                close_exit=row["close"],
-                diff=row["diff"]
+                entry_time=row["open_time"].isoformat(),
+                exit_time=row["exit_open_time"].isoformat(),
+                open_entry=round(float(row["open"]), 2),
+                close_exit=round(float(row["close"]), 2),
+                diff=round(float(row["diff"]), 2),
+                pct_change=round(float(row["pct_change"]), 2)
             )
             for row in results.to_dicts()
         ]

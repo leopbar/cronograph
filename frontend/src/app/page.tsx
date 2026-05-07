@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { FadeIn } from "@/components/ui/fade-in";
 import { Database, BarChart3, Info } from "lucide-react";
 
+import { AnalysisResultsTable, WeeklyResult } from "@/components/features/analysis-results-table";
+
 interface AnalysisResponse {
   total_weeks: number;
   mean: number;
@@ -19,6 +21,7 @@ interface AnalysisResponse {
   max: number;
   cumulative: HistogramItem[];
   discrete: HistogramItem[];
+  results: WeeklyResult[];
 }
 
 export default function Home() {
@@ -131,6 +134,9 @@ export default function Home() {
                         </CardContent>
                       </Card>
                     </div>
+
+                    <AnalysisResultsTable results={analysisResult.results} />
+
                   </div>
                 </FadeIn>
               )}
