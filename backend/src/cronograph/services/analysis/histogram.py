@@ -1,5 +1,5 @@
 import polars as pl
-from typing import List
+from typing import List, cast
 from pydantic import BaseModel
 
 class HistogramData(BaseModel):
@@ -29,22 +29,22 @@ class HistogramService:
         
         # Stats
         total_weeks = len(diffs)
-        mean_val = df["diff"].mean()
-        median_val = df["diff"].median()
-        p90_val = df["diff"].quantile(0.9)
-        max_val = df["diff"].max()
+        mean_val = float(df["diff"].mean() or 0)
+        median_val = float(df["diff"].median() or 0)
+        p90_val = float(df["diff"].quantile(0.9) or 0)
+        max_val = float(df["diff"].max() or 0)
 
         # Discrete Histogram
         # Group by floor(diff / bucket_size) * bucket_size
         discrete_df = df.with_columns([
             ((pl.col("diff") / bucket_size).floor() * bucket_size).alias("bucket")
-        ]).group_by("bucket").count().sort("bucket")
+        ]).group_by("bucket").agg(pl.count().alias("count")).sort("bucket")
         
         discrete_data = [
             HistogramData(
                 label=f"{int(row['bucket'])}-{int(row['bucket'] + bucket_size)}",
-                value=round((row['count'] / total_weeks) * 100, 2),
-                count=row['count']
+                value=round((float(row['count']) / total_weeks) * 100, 2),
+                count=int(row['count'])
             )
             for row in discrete_df.to_dicts()
         ]
@@ -57,7 +57,7 @@ class HistogramService:
             count = df.filter(pl.col("diff") >= b).height
             cumulative_data.append(HistogramData(
                 label=f"≥ {b}",
-                value=round((count / total_weeks) * 100, 2),
+                value=round((float(count) / total_weeks) * 100, 2),
                 count=count
             ))
 
