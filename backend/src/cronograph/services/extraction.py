@@ -1,135 +1,125 @@
 import asyncio
-import logging
-from datetime import datetime
 from typing import AsyncGenerator
-from sqlalchemy.ext.asyncio import AsyncSession
-from cronograph.adapters.binance import BinanceAdapter
-from cronograph.models.extraction_job import ExtractionJob
-from cronograph.models.candle import Candle
-from cronograph.services.estimator import EstimatorService
+from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy import select
-
-logger = logging.getLogger(__name__)
+from cronograph.models.extraction import ExtractionJob
+from cronograph.models.candle import Candle
+from cronograph.adapters.binance import BinanceAdapter
+from cronograph.services.estimator import EstimatorService
 
 class ExtractionService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: AsyncSession, session_factory: async_sessionmaker[AsyncSession]):
         self.db = db
+        self.session_factory = session_factory
         self.adapter = BinanceAdapter()
+        self.estimator = EstimatorService()
 
     async def run_extraction(self, job_id: str) -> AsyncGenerator[dict, None]:
         """
-        Orchestrates the extraction process and yields progress updates.
+        Orchestrates the extraction process using a fresh session.
         """
-        # Fetch job once at start
-        result = await self.db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
-        job = result.scalar_one_or_none()
-        if not job:
-            yield {"error": "Job not found"}
-            return
+        # Create a new session specifically for this background generator
+        async with self.session_factory() as db:
+            result = await db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
+            job = result.scalar_one_or_none()
+            if not job:
+                yield {"event": "error", "data": "Job not found"}
+                return
 
-        job.status = "running"
-        job.started_at = datetime.now()
-        await self.db.commit()
-        await self.db.refresh(job)
+            job.status = "running"
+            job.started_at = datetime.now()
+            await db.commit()
+            await db.refresh(job)
 
-        symbol = job.symbol
-        interval = job.interval
-        range_from = job.range_from
-        range_to = job.range_to
+            symbol = job.symbol
+            interval = job.interval
+            range_from = job.range_from
+            range_to = job.range_to
 
-        try:
-            # 2. Calculate estimate (re-calculate to be sure)
-            estimate = EstimatorService.get_estimate(job.range_from, job.range_to, job.interval)
-            job.candles_total = estimate.candles_total
-            await self.db.commit()
+            try:
+                # 2. Calculate estimate
+                estimate = self.estimator.get_estimate(range_from, range_to, interval)
+                job.candles_total = estimate.candles_total
+                await db.commit()
 
-            current_time = int(range_from.timestamp() * 1000)
-            end_time = int(range_to.timestamp() * 1000)
-            
-            candles_done = 0
-            
-            while current_time < end_time:
-                # Fetch chunk (max 1000)
-                klines = await self.adapter.get_klines(
-                    symbol=symbol,
-                    interval=interval,
-                    start_time=current_time,
-                    end_time=end_time,
-                    limit=1000
-                )
+                current_time = int(range_from.timestamp() * 1000)
+                end_time = int(range_to.timestamp() * 1000)
                 
-                if not klines:
-                    break
+                candles_done = 0
                 
-                # Process and save
-                candles = []
-                for k in klines:
-                    candle = Candle(
+                while current_time < end_time:
+                    klines = await self.adapter.get_klines(
                         symbol=symbol,
                         interval=interval,
-                        open_time=datetime.fromtimestamp(k[0] / 1000),
-                        open=float(k[1]),
-                        high=float(k[2]),
-                        low=float(k[3]),
-                        close=float(k[4]),
-                        volume=float(k[5])
+                        start_time=current_time,
+                        end_time=end_time,
+                        limit=1000
                     )
-                    candles.append(candle)
+                    
+                    if not klines:
+                        break
+                    
+                    candles = []
+                    for k in klines:
+                        candle = Candle(
+                            symbol=symbol,
+                            interval=interval,
+                            open_time=datetime.fromtimestamp(k[0] / 1000),
+                            open=float(k[1]),
+                            high=float(k[2]),
+                            low=float(k[3]),
+                            close=float(k[4]),
+                            volume=float(k[5])
+                        )
+                        candles.append(candle)
+                    
+                    db.add_all(candles)
+                    
+                    candles_done += len(klines)
+                    
+                    # Fresh query to update job status
+                    result = await db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
+                    job_update = result.scalar_one()
+                    job_update.candles_done = candles_done
+                    job_update.progress = min(0.99, candles_done / job_update.candles_total) if job_update.candles_total > 0 else 0.99
+                    await db.commit()
+                    
+                    yield {
+                        "event": "progress",
+                        "data": {
+                            "candles_done": candles_done,
+                            "progress": job_update.progress
+                        }
+                    }
+                    
+                    current_time = klines[-1][0] + 1
+                    await asyncio.sleep(0.1)
+
+                # Finalize
+                result = await db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
+                job_final = result.scalar_one()
+                job_final.status = "done"
+                job_final.progress = 1.0
+                job_final.finished_at = datetime.now()
                 
-                self.db.add_all(candles)
-                
-                candles_done += len(klines)
-                
-                # Update job status in DB
-                await self.db.execute(
-                    select(ExtractionJob).where(ExtractionJob.id == job_id)
+                from cronograph.models.coverage import Coverage
+                coverage = Coverage(
+                    symbol=symbol,
+                    interval=interval,
+                    range_from=range_from,
+                    range_to=range_to
                 )
-                job.candles_done = candles_done
-                job.progress = min(1.0, candles_done / job.candles_total) if job.candles_total > 0 else 1.0
-                await self.db.commit()
+                db.add(coverage)
+                await db.commit()
                 
-                yield {
-                    "progress": job.progress,
-                    "candles_done": job.candles_done,
-                    "candles_total": job.candles_total,
-                    "status": job.status
-                }
-                
-                # Update current_time to the next expected candle
-                current_time = klines[-1][0] + 1
-                
-                # Small delay to respect rate limits if needed (adapter handles basics)
-                await asyncio.sleep(0.1)
+                yield {"event": "done", "data": {"job_id": job_id}}
 
-            await self.db.execute(
-                select(ExtractionJob).where(ExtractionJob.id == job_id)
-            )
-            job.status = "done"
-            job.finished_at = datetime.now()
-            
-            # Update coverage
-            from cronograph.models.coverage import Coverage
-            coverage = Coverage(
-                symbol=symbol,
-                interval=interval,
-                range_from=range_from,
-                range_to=range_to
-            )
-            self.db.add(coverage)
-            await self.db.commit()
-            
-            yield {
-                "progress": 1.0,
-                "candles_done": job.candles_done,
-                "candles_total": job.candles_total,
-                "status": "done"
-            }
-
-        except Exception as e:
-            logger.error(f"Error in extraction job {job_id}: {e}")
-            job.status = "failed"
-            job.error = str(e)
-            await self.db.commit()
-            yield {"error": str(e), "status": "failed"}
-        finally:
-            await self.adapter.close()
+            except Exception as e:
+                # Refresh job to update error
+                result = await db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
+                job_err = result.scalar_one()
+                job_err.status = "failed"
+                job_err.error = str(e)
+                await db.commit()
+                yield {"event": "error", "data": str(e)}

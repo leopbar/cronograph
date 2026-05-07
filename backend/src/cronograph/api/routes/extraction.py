@@ -5,8 +5,8 @@ from typing import Any
 import json
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from cronograph.core.db import get_db
-from cronograph.models.extraction_job import ExtractionJob
+from cronograph.core.db import get_db, SessionLocal
+from cronograph.models.extraction import ExtractionJob
 from cronograph.services.estimator import EstimatorService, ExtractionEstimate
 from cronograph.services.extraction import ExtractionService
 
@@ -46,15 +46,15 @@ async def start_extraction(request: ExtractionPreviewRequest, db: AsyncSession =
 
 @router.get("/{job_id}/stream")
 async def stream_extraction(job_id: str, db: AsyncSession = Depends(get_db)):
-    service = ExtractionService(db)
+    service = ExtractionService(db, SessionLocal)
     
     async def event_generator():
         async for update in service.run_extraction(job_id):
             yield {
-                "event": "update",
-                "data": json.dumps(update)
+                "event": update["event"],
+                "data": json.dumps(update["data"])
             }
-            if update.get("status") in ["done", "failed"]:
+            if update["event"] in ["done", "error"]:
                 break
 
     return EventSourceResponse(event_generator())
