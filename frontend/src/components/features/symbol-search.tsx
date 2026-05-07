@@ -1,9 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -32,7 +32,7 @@ export function SymbolSearch({ value, onChange }: SymbolSearchProps) {
 
   React.useEffect(() => {
     if (query.length < 2) {
-      setSymbols([]);
+      setSymbols([]); // eslint-disable-line react-hooks/set-state-in-effect
       return;
     }
 
