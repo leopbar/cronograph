@@ -21,10 +21,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cronograph_backend
-    volumes:
-      - ./backend:/app
+    # volumes:
+    #   - ./backend:/app
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/cronograph
+      - PYTHONPATH=src
     ports:
       - "8001:8000"
     depends_on:
@@ -36,10 +37,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: cronograph_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+    # volumes:
+    #   - ./frontend:/app
+    #   - /app/node_modules
+    #   - /app/.next
     ports:
       - "3001:3000"
     environment:
