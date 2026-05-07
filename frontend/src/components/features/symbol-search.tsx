@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -51,16 +51,14 @@ export function SymbolSearch({ value, onChange }: SymbolSearchProps) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className="w-full justify-between"
-        >
-          {value ? value : "Select symbol..."}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+      <PopoverTrigger
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "w-full justify-between"
+        )}
+      >
+        {value ? value : "Select symbol..."}
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-[300px] p-0">
         <Command shouldFilter={false}>

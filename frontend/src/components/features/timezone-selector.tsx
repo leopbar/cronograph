@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Globe } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
@@ -26,11 +26,11 @@ export function TimezoneSelector() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-8 gap-2 text-xs">
-          <Globe className="h-3.5 w-3.5" />
-          {timezone}
-        </Button>
+      <PopoverTrigger
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "h-8 gap-2 text-xs")}
+      >
+        <Globe className="h-3.5 w-3.5" />
+        {timezone}
       </PopoverTrigger>
       <PopoverContent className="w-[200px] p-0" align="end">
         <div className="flex flex-col">

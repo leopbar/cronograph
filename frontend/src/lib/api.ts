@@ -7,8 +7,8 @@ export async function fetchSymbols(query: string): Promise<string[]> {
 }
 
 export interface ExtractionPreviewRequest {
-  symbol: str;
-  interval: str;
+  symbol: string;
+  interval: string;
   range_from: string;
   range_to: string;
 }
