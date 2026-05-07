@@ -8,6 +8,9 @@ from cronograph.core.db import get_db, SessionLocal
 from cronograph.models.extraction_job import ExtractionJob
 from cronograph.services.estimator import EstimatorService, ExtractionEstimate
 from cronograph.services.extraction import ExtractionService
+from cronograph.models.coverage import Coverage
+from sqlalchemy import select
+
 
 router = APIRouter(prefix="/extractions", tags=["extractions"])
 
@@ -43,8 +46,6 @@ async def start_extraction(request: ExtractionPreviewRequest, db: AsyncSession =
     await db.refresh(job)
     return {"job_id": str(job.id)}
 
-from cronograph.models.coverage import Coverage
-from sqlalchemy import select
 
 @router.get("/coverage")
 async def get_coverage_history(db: AsyncSession = Depends(get_db)):

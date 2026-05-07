@@ -24,7 +24,19 @@ export function ExtractionHistory() {
   }, []);
 
   React.useEffect(() => {
-    refreshHistory();
+    let ignore = false;
+    const fetchHistory = async () => {
+      if (!ignore) {
+        await refreshHistory();
+      }
+    };
+    fetchHistory();
+    return () => {
+      ignore = true;
+    };
+  }, [refreshHistory]);
+
+  React.useEffect(() => {
     const handleRefresh = () => refreshHistory();
     window.addEventListener("refresh-history", handleRefresh);
     return () => window.removeEventListener("refresh-history", handleRefresh);
