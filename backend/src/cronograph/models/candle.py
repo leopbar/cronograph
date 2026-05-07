@@ -1,5 +1,7 @@
-from sqlalchemy import Column, String, Numeric, DateTime, PrimaryKeyConstraint
-from sqlalchemy.orm import DeclarativeBase
+from decimal import Decimal
+from datetime import datetime
+from sqlalchemy import String, Numeric, DateTime, PrimaryKeyConstraint
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 class Base(DeclarativeBase):
     pass
@@ -7,14 +9,14 @@ class Base(DeclarativeBase):
 class Candle(Base):
     __tablename__ = "candles"
 
-    symbol = Column(String, nullable=False)
-    interval = Column(String, nullable=False)
-    open_time = Column(DateTime(timezone=True), nullable=False)
-    open = Column(Numeric, nullable=False)
-    high = Column(Numeric, nullable=False)
-    low = Column(Numeric, nullable=False)
-    close = Column(Numeric, nullable=False)
-    volume = Column(Numeric, nullable=False)
+    symbol: Mapped[str] = mapped_column(String, nullable=False)
+    interval: Mapped[str] = mapped_column(String, nullable=False)
+    open_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    open: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    high: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    low: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    close: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
+    volume: Mapped[Decimal] = mapped_column(Numeric, nullable=False)
 
     __table_args__ = (
         PrimaryKeyConstraint("symbol", "interval", "open_time"),

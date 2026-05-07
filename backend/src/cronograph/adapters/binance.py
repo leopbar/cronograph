@@ -43,7 +43,7 @@ class BinanceAdapter:
         Fetch OHLCV data from Binance.
         Returns a list of raw kline data.
         """
-        params = {
+        params: dict[str, Any] = {
             "symbol": symbol,
             "interval": interval,
             "limit": limit

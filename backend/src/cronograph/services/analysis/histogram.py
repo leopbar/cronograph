@@ -1,5 +1,5 @@
 import polars as pl
-from typing import List
+from typing import List, cast
 from pydantic import BaseModel
 
 class HistogramData(BaseModel):
@@ -29,10 +29,11 @@ class HistogramService:
         
         # Stats
         total_weeks = len(diffs)
-        mean_val = float(df["diff"].mean() or 0)
-        median_val = float(df["diff"].median() or 0)
-        p90_val = float(df["diff"].quantile(0.9) or 0)
-        max_val = float(df["diff"].max() or 0)
+        # Using cast(float, ...) to satisfy MyPy since Polars' type hints are broad
+        mean_val = cast(float, df["diff"].mean())
+        median_val = cast(float, df["diff"].median())
+        p90_val = cast(float, df["diff"].quantile(0.9))
+        max_val = cast(float, df["diff"].max())
 
         # Discrete Histogram
         # Group by floor(diff / bucket_size) * bucket_size
@@ -51,6 +52,7 @@ class HistogramService:
 
         # Cumulative Histogram
         # For each bucket B, count diffs >= B
+        # max_val is cast to float, bucket_size is int. Result of // is float if we are not careful
         max_bucket = int((max_val // bucket_size) * bucket_size)
         cumulative_data = []
         for b in range(0, max_bucket + bucket_size, bucket_size):

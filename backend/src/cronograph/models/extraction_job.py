@@ -1,20 +1,23 @@
 import uuid
-from sqlalchemy import Column, String, DateTime, Float, Integer
+from datetime import datetime
+from typing import Optional
+from sqlalchemy import String, DateTime, Float, Integer
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
 from cronograph.models.candle import Base
 
 class ExtractionJob(Base):
     __tablename__ = "extraction_jobs"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    symbol = Column(String, nullable=False)
-    interval = Column(String, nullable=False)
-    range_from = Column(DateTime(timezone=True), nullable=False)
-    range_to = Column(DateTime(timezone=True), nullable=False)
-    status = Column(String, nullable=False)  # pending, running, done, failed, canceled
-    progress = Column(Float, default=0.0)
-    candles_total = Column(Integer, nullable=True)
-    candles_done = Column(Integer, default=0)
-    error = Column(String, nullable=True)
-    started_at = Column(DateTime(timezone=True), nullable=True)
-    finished_at = Column(DateTime(timezone=True), nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    symbol: Mapped[str] = mapped_column(String, nullable=False)
+    interval: Mapped[str] = mapped_column(String, nullable=False)
+    range_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    range_to: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)  # pending, running, done, failed, canceled
+    progress: Mapped[float] = mapped_column(Float, default=0.0)
+    candles_total: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    candles_done: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
