@@ -3,7 +3,7 @@ from typing import AsyncGenerator
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy import select
-from cronograph.models.extraction import ExtractionJob
+from cronograph.models.extraction_job import ExtractionJob
 from cronograph.models.candle import Candle
 from cronograph.adapters.binance import BinanceAdapter
 from cronograph.services.estimator import EstimatorService

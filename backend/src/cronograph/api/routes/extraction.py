@@ -6,7 +6,7 @@ import json
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from cronograph.core.db import get_db, SessionLocal
-from cronograph.models.extraction import ExtractionJob
+from cronograph.models.extraction_job import ExtractionJob
 from cronograph.services.estimator import EstimatorService, ExtractionEstimate
 from cronograph.services.extraction import ExtractionService
 
