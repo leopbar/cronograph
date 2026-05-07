@@ -1,5 +1,5 @@
 import polars as pl
-from typing import List, cast
+from typing import List
 from pydantic import BaseModel
 
 class HistogramData(BaseModel):
