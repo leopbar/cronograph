@@ -20,7 +20,7 @@ class ExtractionService:
         """
         Orchestrates the extraction process and yields progress updates.
         """
-        # 1. Fetch job from DB
+        # Fetch job once at start
         result = await self.db.execute(select(ExtractionJob).where(ExtractionJob.id == job_id))
         job = result.scalar_one_or_none()
         if not job:
@@ -30,6 +30,12 @@ class ExtractionService:
         job.status = "running"
         job.started_at = datetime.now()
         await self.db.commit()
+        await self.db.refresh(job)
+
+        symbol = job.symbol
+        interval = job.interval
+        range_from = job.range_from
+        range_to = job.range_to
 
         try:
             # 2. Calculate estimate (re-calculate to be sure)
@@ -37,16 +43,16 @@ class ExtractionService:
             job.candles_total = estimate.candles_total
             await self.db.commit()
 
-            current_time = int(job.range_from.timestamp() * 1000)
-            end_time = int(job.range_to.timestamp() * 1000)
+            current_time = int(range_from.timestamp() * 1000)
+            end_time = int(range_to.timestamp() * 1000)
             
             candles_done = 0
             
             while current_time < end_time:
                 # Fetch chunk (max 1000)
                 klines = await self.adapter.get_klines(
-                    symbol=job.symbol,
-                    interval=job.interval,
+                    symbol=symbol,
+                    interval=interval,
                     start_time=current_time,
                     end_time=end_time,
                     limit=1000
@@ -59,8 +65,8 @@ class ExtractionService:
                 candles = []
                 for k in klines:
                     candle = Candle(
-                        symbol=job.symbol,
-                        interval=job.interval,
+                        symbol=symbol,
+                        interval=interval,
                         open_time=datetime.fromtimestamp(k[0] / 1000),
                         open=float(k[1]),
                         high=float(k[2]),
@@ -70,12 +76,14 @@ class ExtractionService:
                     )
                     candles.append(candle)
                 
-                # Insert into DB (ON CONFLICT DO NOTHING handled by hypertable/model if unique)
-                # For MVP, we'll just insert. 
-                # Note: TimescaleDB handles duplicates depending on primary keys.
                 self.db.add_all(candles)
                 
                 candles_done += len(klines)
+                
+                # Update job status in DB
+                await self.db.execute(
+                    select(ExtractionJob).where(ExtractionJob.id == job_id)
+                )
                 job.candles_done = candles_done
                 job.progress = min(1.0, candles_done / job.candles_total) if job.candles_total > 0 else 1.0
                 await self.db.commit()
@@ -93,16 +101,19 @@ class ExtractionService:
                 # Small delay to respect rate limits if needed (adapter handles basics)
                 await asyncio.sleep(0.1)
 
+            await self.db.execute(
+                select(ExtractionJob).where(ExtractionJob.id == job_id)
+            )
             job.status = "done"
             job.finished_at = datetime.now()
             
             # Update coverage
             from cronograph.models.coverage import Coverage
             coverage = Coverage(
-                symbol=job.symbol,
-                interval=job.interval,
-                range_from=job.range_from,
-                range_to=job.range_to
+                symbol=symbol,
+                interval=interval,
+                range_from=range_from,
+                range_to=range_to
             )
             self.db.add(coverage)
             await self.db.commit()

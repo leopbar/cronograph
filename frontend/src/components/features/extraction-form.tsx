@@ -26,8 +26,8 @@ export function ExtractionForm() {
       const result = await getExtractionPreview({
         symbol,
         interval,
-        range_from: new Date(rangeFrom).toISOString(),
-        range_to: new Date(rangeTo).toISOString(),
+        range_from: new Date(`${rangeFrom}T00:00:00`).toISOString(),
+        range_to: new Date(`${rangeTo}T23:59:59`).toISOString(),
       });
       setEstimate(result);
     } catch (error) {
@@ -44,8 +44,8 @@ export function ExtractionForm() {
       const { job_id } = await startExtraction({
         symbol,
         interval,
-        range_from: new Date(rangeFrom).toISOString(),
-        range_to: new Date(rangeTo).toISOString(),
+        range_from: new Date(`${rangeFrom}T00:00:00`).toISOString(),
+        range_to: new Date(`${rangeTo}T23:59:59`).toISOString(),
       });
       setJobId(job_id);
       // Here we would normally redirect or show progress
@@ -88,7 +88,7 @@ export function ExtractionForm() {
           <div className="space-y-2">
             <Label>From</Label>
             <Input 
-              type="datetime-local" 
+              type="date" 
               value={rangeFrom} 
               onChange={(e) => setRangeFrom(e.target.value)} 
             />
@@ -96,7 +96,7 @@ export function ExtractionForm() {
           <div className="space-y-2">
             <Label>To</Label>
             <Input 
-              type="datetime-local" 
+              type="date" 
               value={rangeTo} 
               onChange={(e) => setRangeTo(e.target.value)} 
             />
