@@ -1,6 +1,6 @@
 import polars as pl
 from datetime import datetime, time
-from typing import List, Optional
+from typing import List
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

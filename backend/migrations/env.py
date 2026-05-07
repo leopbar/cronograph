@@ -6,8 +6,6 @@ from sqlalchemy import pool
 from alembic import context
 
 from cronograph.models.candle import Base
-from cronograph.models.coverage import Coverage
-from cronograph.models.extraction_job import ExtractionJob
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

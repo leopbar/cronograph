@@ -82,28 +82,28 @@ class ExtractionService:
                         ) for k in klines
                     ]
                     
-                # Upsert candles (ON CONFLICT DO NOTHING)
-                if candles:
-                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    # Upsert candles (ON CONFLICT DO NOTHING)
+                    if candles:
+                        from sqlalchemy.dialects.postgresql import insert as pg_insert
+                        
+                        stmt = pg_insert(Candle).values([
+                            {
+                                "symbol": c.symbol,
+                                "interval": c.interval,
+                                "open_time": c.open_time,
+                                "open": c.open,
+                                "high": c.high,
+                                "low": c.low,
+                                "close": c.close,
+                                "volume": c.volume
+                            } for c in candles
+                        ])
+                        stmt = stmt.on_conflict_do_nothing(
+                            index_elements=["symbol", "interval", "open_time"]
+                        )
+                        await db.execute(stmt)
                     
-                    stmt = pg_insert(Candle).values([
-                        {
-                            "symbol": c.symbol,
-                            "interval": c.interval,
-                            "open_time": c.open_time,
-                            "open": c.open,
-                            "high": c.high,
-                            "low": c.low,
-                            "close": c.close,
-                            "volume": c.volume
-                        } for c in candles
-                    ])
-                    stmt = stmt.on_conflict_do_nothing(
-                        index_elements=["symbol", "interval", "open_time"]
-                    )
-                    await db.execute(stmt)
-                
-                candles_done += len(klines)
+                    candles_done += len(klines)
                     progress = min(0.99, candles_done / total_expected) if total_expected > 0 else 0.99
                     
                     # Atomic update for progress
