@@ -58,7 +58,7 @@ export function Sidebar() {
           {!collapsed && (
             <div className="overflow-hidden">
               <span className="font-bold text-xl text-white tracking-tight leading-tight block whitespace-nowrap">Cronograph</span>
-              <span className="text-xs text-[#7C8BA1] block font-medium whitespace-nowrap">Bitcoin Data Extraction</span>
+              <span className="text-xs text-[#7C8BA1] block font-medium whitespace-nowrap">Crypto Data Extraction</span>
             </div>
           )}
         </div>
