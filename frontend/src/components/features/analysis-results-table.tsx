@@ -11,8 +11,8 @@ import { cn } from "@/lib/utils";
 export interface WeeklyResult {
   entry_time: string;
   exit_time: string;
-  open_entry: number;
-  close_exit: number;
+  entry_price: number;
+  exit_price: number;
   diff: number;
   pct_change: number;
 }
@@ -76,10 +76,10 @@ export function AnalysisResultsTable({ results }: Props) {
                         </div>
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">
-                        ${result.open_entry.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ${result.entry_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-4 font-mono text-xs">
-                        ${result.close_exit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        ${result.exit_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex flex-col items-end">

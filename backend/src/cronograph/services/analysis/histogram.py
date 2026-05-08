@@ -10,8 +10,8 @@ class HistogramData(BaseModel):
 class WeeklyResult(BaseModel):
     entry_time: str
     exit_time: str
-    open_entry: float
-    close_exit: float
+    entry_price: float
+    exit_price: float
     diff: float
     pct_change: float
 

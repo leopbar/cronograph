@@ -15,17 +15,17 @@ class WeeklyWindowAnalysis:
         self,
         symbol: str,
         interval: str,
-        entry_weekday: int,  # 0=Monday, 6=Sunday
+        entry_weekday: int,
         entry_time: time,
+        entry_price_type: str, # "open" or "close"
         exit_weekday: int,
-        exit_time: time
+        exit_time: time,
+        exit_price_type: str   # "open" or "close"
     ) -> List[WeeklyResult]:
         """
         Calculates the diff for each week in the available data.
         """
         # 1. Fetch data from DB
-        # For MVP, we fetch all candles for the symbol/interval
-        # In a real app, we might want to filter by date range
         stmt = select(Candle).where(
             Candle.symbol == symbol,
             Candle.interval == interval
@@ -53,14 +53,17 @@ class WeeklyWindowAnalysis:
         entries = df.filter(
             (pl.col("weekday") == entry_weekday) & 
             (pl.col("time") == entry_time)
-        ).select(["open_time", "open"])
+        ).select([
+            "open_time", 
+            pl.col(entry_price_type).alias("entry_price")
+        ])
         
         exits = df.filter(
             (pl.col("weekday") == exit_weekday) & 
             (pl.col("time") == exit_time)
         ).select([
             pl.col("open_time").alias("exit_open_time"),
-            "close"
+            pl.col(exit_price_type).alias("exit_price")
         ])
 
         # 4. Join entries and exits
@@ -73,16 +76,16 @@ class WeeklyWindowAnalysis:
 
         # 5. Calculate diff and pct change
         results = results.with_columns([
-            (pl.col("close") - pl.col("open")).alias("diff"),
-            ((pl.col("close") - pl.col("open")) / pl.col("open") * 100).alias("pct_change")
+            (pl.col("exit_price") - pl.col("entry_price")).alias("diff"),
+            ((pl.col("exit_price") - pl.col("entry_price")) / pl.col("entry_price") * 100).alias("pct_change")
         ])
 
         return [
             WeeklyResult(
                 entry_time=row["open_time"].isoformat(),
                 exit_time=row["exit_open_time"].isoformat(),
-                open_entry=round(float(row["open"]), 2),
-                close_exit=round(float(row["close"]), 2),
+                entry_price=round(float(row["entry_price"]), 2),
+                exit_price=round(float(row["exit_price"]), 2),
                 diff=round(float(row["diff"]), 2),
                 pct_change=round(float(row["pct_change"]), 2)
             )

@@ -12,8 +12,10 @@ export interface AnalysisRequest {
   interval: string;
   entry_weekday: number;
   entry_time: string;
+  entry_price_type: string;
   exit_weekday: number;
   exit_time: string;
+  exit_price_type: string;
   bucket_size: number;
 }
 
@@ -27,8 +29,10 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
   const [interval, setInterval] = React.useState("1h");
   const [entryWeekday, setEntryWeekday] = React.useState("0");
   const [entryTime, setEntryTime] = React.useState("14:00");
+  const [entryPriceType, setEntryPriceType] = React.useState("open");
   const [exitWeekday, setExitWeekday] = React.useState("4");
   const [exitTime, setExitTime] = React.useState("07:00");
+  const [exitPriceType, setExitPriceType] = React.useState("open");
   const [bucketSize, setBucketSize] = React.useState("1000");
 
   const handleSubmit = () => {
@@ -37,8 +41,10 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
       interval,
       entry_weekday: parseInt(entryWeekday),
       entry_time: entryTime,
+      entry_price_type: entryPriceType,
       exit_weekday: parseInt(exitWeekday),
       exit_time: exitTime,
+      exit_price_type: exitPriceType,
       bucket_size: parseInt(bucketSize),
     });
   };
@@ -82,6 +88,17 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
               <Label>Time (UTC)</Label>
               <Input type="time" value={entryTime} onChange={(e) => setEntryTime(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Price Type</Label>
+              <select 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={entryPriceType}
+                onChange={(e) => setEntryPriceType(e.target.value)}
+              >
+                <option value="open">Open</option>
+                <option value="close">Close</option>
+              </select>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -99,6 +116,17 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
             <div className="space-y-2">
               <Label>Time (UTC)</Label>
               <Input type="time" value={exitTime} onChange={(e) => setExitTime(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Price Type</Label>
+              <select 
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                value={exitPriceType}
+                onChange={(e) => setExitPriceType(e.target.value)}
+              >
+                <option value="open">Open</option>
+                <option value="close">Close</option>
+              </select>
             </div>
           </div>
         </div>
