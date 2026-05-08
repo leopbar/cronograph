@@ -22,12 +22,15 @@ export interface HistogramItem {
 export function CumulativeHistogram({ data }: { data: HistogramItem[] }) {
   const filtered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
 
-  const renderLabel = (props: { x?: number; y?: number; width?: number; value?: number }) => {
-    const { x = 0, y = 0, width = 0, value } = props;
+  const renderLabel = (props: object) => {
+    const { x, y, width, value } = props as { x?: number; y?: number; width?: number; value?: number };
+    const xn = Number(x ?? 0);
+    const yn = Number(y ?? 0);
+    const wn = Number(width ?? 0);
     if (value == null) return null;
     return (
-      <text x={x + width / 2} y={y - 6} fill="#34D399" textAnchor="middle" fontSize={9} fontWeight="bold">
-        {(value as number).toFixed(1)}%
+      <text x={xn + wn / 2} y={yn - 6} fill="#34D399" textAnchor="middle" fontSize={9} fontWeight="bold">
+        {value.toFixed(1)}%
       </text>
     );
   };
@@ -108,20 +111,24 @@ export function DiscreteHistogram({ data }: { data: HistogramItem[] }) {
     return `hsl(${hue}, 90%, 55%)`;
   };
 
-  const renderCustomLabel = (props: { x?: number; y?: number; width?: number; index?: number }) => {
-    const { x = 0, y = 0, width = 0, index = 0 } = props;
-    const item = filtered[index];
+  const renderCustomLabel = (props: object) => {
+    const { x, y, width, index } = props as { x?: number; y?: number; width?: number; index?: number };
+    const xn = Number(x ?? 0);
+    const yn = Number(y ?? 0);
+    const wn = Number(width ?? 0);
+    const idx = Number(index ?? 0);
+    const item = filtered[idx];
     if (!item) return null;
     const localPct = totalFiltered > 0 ? (item.count / totalFiltered) * 100 : 0;
     return (
       <g>
-        <text x={x + width / 2} y={y - 8} fill="#FFFFFF" textAnchor="middle" fontSize={10} fontWeight="bold">
+        <text x={xn + wn / 2} y={yn - 8} fill="#FFFFFF" textAnchor="middle" fontSize={10} fontWeight="bold">
           {item.count}w
         </text>
-        <text x={x + width / 2} y={y - 21} fill="#60A5FA" textAnchor="middle" fontSize={8}>
+        <text x={xn + wn / 2} y={yn - 21} fill="#60A5FA" textAnchor="middle" fontSize={8}>
           {item.value?.toFixed(1)}%
         </text>
-        <text x={x + width / 2} y={y - 32} fill="#34D399" textAnchor="middle" fontSize={8}>
+        <text x={xn + wn / 2} y={yn - 32} fill="#34D399" textAnchor="middle" fontSize={8}>
           {localPct.toFixed(1)}%
         </text>
       </g>
