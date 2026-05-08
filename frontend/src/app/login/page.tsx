@@ -1,5 +1,8 @@
 "use client";
 
+// useSearchParams requires Suspense for static rendering; force-dynamic skips prerender
+export const dynamic = "force-dynamic";
+
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginApi } from "@/lib/api";
