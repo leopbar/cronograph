@@ -5,6 +5,7 @@ import { AnalysisForm, AnalysisRequest } from "@/components/features/analysis-fo
 import { CumulativeHistogram, DiscreteHistogram, HistogramItem } from "@/components/features/histogram-charts";
 import { FadeIn } from "@/components/ui/fade-in";
 import { BarChart3, AlertCircle, Info } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 import { AnalysisResultsTable, WeeklyResult } from "@/components/features/analysis-results-table";
 
@@ -27,15 +28,13 @@ export default function AnalysisPage() {
   const [analysisResult, setAnalysisResult] = React.useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
   const runAnalysis = async (request: AnalysisRequest) => {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const analysisRes = await fetch(`${API_URL}/analysis/weekly-window`, {
+      const analysisRes = await apiFetch("/analysis/weekly-window", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
       });
 

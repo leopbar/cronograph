@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { History, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FadeIn } from "@/components/ui/fade-in";
+import { apiFetch } from "@/lib/api";
 
 interface ExtractionJob {
   id: string;
@@ -51,7 +52,6 @@ export default function ExtractionHistoryPage() {
   const [jobs, setJobs] = React.useState<ExtractionJob[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
   const [fetchTrigger, setFetchTrigger] = React.useState(0);
   const load = () => setFetchTrigger(n => n + 1);
@@ -64,7 +64,7 @@ export default function ExtractionHistoryPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_URL}/extractions/history`);
+        const res = await apiFetch("/extractions/history");
         if (cancelled) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -76,7 +76,7 @@ export default function ExtractionHistoryPage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [API_URL, fetchTrigger]);
+  }, [fetchTrigger]);
 
   return (
     <div className="flex-1 p-8 xl:p-10 max-w-[1700px] mx-auto w-full space-y-8">

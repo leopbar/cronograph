@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/api";
 
 export interface AnalysisRequest {
   symbol: string;
@@ -40,16 +41,14 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
   const [exitTime, setExitTime] = React.useState("07:00");
   const [exitPriceType] = React.useState("open");
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
-
-  const inputClasses = "flex h-[42px] w-full rounded-[8px] border border-white/10 bg-[#07111F] px-3 py-2 text-xs text-white placeholder:text-[#7C8BA1] focus:outline-none focus:ring-1 focus:ring-blue-500/40 transition-all duration-200";
+  const inputClasses ="flex h-[42px] w-full rounded-[8px] border border-white/10 bg-[#07111F] px-3 py-2 text-xs text-white placeholder:text-[#7C8BA1] focus:outline-none focus:ring-1 focus:ring-blue-500/40 transition-all duration-200";
 
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         setSymbolsState({ status: "loading" });
-        const response = await fetch(`${API_URL}/extractions/symbols`);
+        const response = await apiFetch("/extractions/symbols");
         if (cancelled) return;
         if (!response.ok) {
           setSymbolsState({ status: "error", message: `HTTP ${response.status}` });
@@ -69,7 +68,7 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
       }
     })();
     return () => { cancelled = true; };
-  }, [API_URL]);
+  }, []);
 
   const symbols = symbolsState.status === "ready" ? symbolsState.list : [];
 
