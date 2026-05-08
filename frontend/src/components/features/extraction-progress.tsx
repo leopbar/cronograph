@@ -66,9 +66,9 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
     eventSource.addEventListener("error", (event) => {
       let errorMessage = "Unknown error during extraction";
       try {
-        const eventAny = event as any;
-        if (eventAny.data && eventAny.data !== "undefined") {
-          errorMessage = JSON.parse(eventAny.data);
+        const data = (event as MessageEvent).data;
+        if (data && data !== "undefined") {
+          errorMessage = JSON.parse(data);
         }
       } catch (err) {
         console.error("Failed to parse error data:", err);

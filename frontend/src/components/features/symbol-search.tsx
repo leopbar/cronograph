@@ -31,12 +31,11 @@ export function SymbolSearch({ value, onChange, className }: SymbolSearchProps) 
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    if (query.length < 2) {
-      setSymbols([]);
-      return;
-    }
-
     const timer = setTimeout(async () => {
+      if (query.length < 2) {
+        setSymbols([]);
+        return;
+      }
       setLoading(true);
       try {
         const results = await fetchSymbols(query);

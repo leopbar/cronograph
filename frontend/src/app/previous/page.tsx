@@ -53,21 +53,30 @@ export default function ExtractionHistoryPage() {
   const [error, setError] = React.useState<string | null>(null);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
-  const load = React.useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`${API_URL}/extractions/history`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setJobs(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }, [API_URL]);
+  const [fetchTrigger, setFetchTrigger] = React.useState(0);
+  const load = () => setFetchTrigger(n => n + 1);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      await Promise.resolve(); // defer to next microtask to avoid synchronous setState
+      if (cancelled) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch(`${API_URL}/extractions/history`);
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setJobs(data);
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : "Unknown error");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [API_URL, fetchTrigger]);
 
   return (
     <div className="flex-1 p-8 xl:p-10 max-w-[1700px] mx-auto w-full space-y-8">

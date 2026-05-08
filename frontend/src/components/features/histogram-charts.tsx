@@ -22,8 +22,8 @@ export interface HistogramItem {
 export function CumulativeHistogram({ data }: { data: HistogramItem[] }) {
   const filtered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
 
-  const renderLabel = (props: any) => {
-    const { x, y, width, value } = props;
+  const renderLabel = (props: { x?: number; y?: number; width?: number; value?: number }) => {
+    const { x = 0, y = 0, width = 0, value } = props;
     if (value == null) return null;
     return (
       <text x={x + width / 2} y={y - 6} fill="#34D399" textAnchor="middle" fontSize={9} fontWeight="bold">
@@ -108,8 +108,8 @@ export function DiscreteHistogram({ data }: { data: HistogramItem[] }) {
     return `hsl(${hue}, 90%, 55%)`;
   };
 
-  const renderCustomLabel = (props: any) => {
-    const { x, y, width, index } = props;
+  const renderCustomLabel = (props: { x?: number; y?: number; width?: number; index?: number }) => {
+    const { x = 0, y = 0, width = 0, index = 0 } = props;
     const item = filtered[index];
     if (!item) return null;
     const localPct = totalFiltered > 0 ? (item.count / totalFiltered) * 100 : 0;
@@ -118,11 +118,9 @@ export function DiscreteHistogram({ data }: { data: HistogramItem[] }) {
         <text x={x + width / 2} y={y - 8} fill="#FFFFFF" textAnchor="middle" fontSize={10} fontWeight="bold">
           {item.count}w
         </text>
-        {/* global % — relative to all weeks including outside chart */}
         <text x={x + width / 2} y={y - 21} fill="#60A5FA" textAnchor="middle" fontSize={8}>
           {item.value?.toFixed(1)}%
         </text>
-        {/* local % — relative only to visible bars (sums to 100%) */}
         <text x={x + width / 2} y={y - 32} fill="#34D399" textAnchor="middle" fontSize={8}>
           {localPct.toFixed(1)}%
         </text>

@@ -60,7 +60,9 @@ class HistogramService:
         
         # Annualized Sharpe Ratio (assuming weekly windows)
         # Risk-free rate assumed 0
-        sharpe = (mean_return / std_return * (52 ** 0.5)) if std_return and std_return > 0 else 0.0
+        mean_val: float = float(mean_return) if mean_return is not None else 0.0
+        std_val: float = float(std_return) if std_return is not None else 0.0
+        sharpe = (mean_val / std_val * (52 ** 0.5)) if std_val > 0 else 0.0
         
         # Cumulative Return and Max Drawdown
         # We calculate the equity curve: (1 + r1) * (1 + r2) * ...
