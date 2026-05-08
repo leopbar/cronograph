@@ -97,24 +97,70 @@ If the next agent encounters issues, refer to these solved cases:
 
 ---
 
+## ⚠️ Obrigatório Antes de Qualquer Push para o GitHub
+
+**Todo push deve ser precedido pela execução dos 4 processos de validação abaixo, sem exceção.** O CI do GitHub roda exatamente esses checks e falha o build se qualquer um deles não passar. Não subir código que não tenha passado localmente.
+
+### Backend (rodar dentro do container)
+```bash
+docker compose run --rm backend uv run ruff check .   # linter Python moderno
+docker compose run --rm backend uv run mypy .          # verificação estática de tipos
+```
+
+### Frontend (rodar na pasta frontend/)
+```bash
+npm run lint        # ESLint — erros de código e padrões React
+npm run typecheck   # tsc --noEmit — verificação de tipos TypeScript
+```
+
+**Regra prática**: lint e typecheck passando com zero erros (warnings são tolerados pelo CI, mas devem ser investigados). Só commitar e pushar após os 4 processos retornarem clean.
+
+### Problemas comuns encontrados nesse ciclo de CI
+
+| Erro | Causa | Fix aplicado |
+|------|-------|-------------|
+| `mypy`: operações com `Optional` de Polars | `.mean()` e `.std()` retornam unions complexas | Usar `cast(float, ...)` ao invés de `float()` direto |
+| `mypy`: nome já definido (`no-redef`) | Reutilizar variável com anotação de tipo em escopo já declarado | Renomear para `sharpe_mean`, `sharpe_std` etc. |
+| `eslint`: `setState` síncrono em `useEffect` | Chamar setState no corpo do effect (não em callback/async) | Mover setState para dentro de IIFE async ou setTimeout |
+| `eslint`: `no-explicit-any` | Uso de `as any` em handlers de eventos | Usar tipo específico: `(event as MessageEvent).data` |
+| `typecheck`: tipo de `LabelList content` incompatível | Recharts usa `Props` sem index signature e `value: RenderableText` (inclui `boolean`) | Tipar como `(props: object)` + cast interno |
+| `typecheck`: `Cannot find module 'webpack'` | Import do tipo `Configuration` do webpack em `next.config.ts` | Remover import e deixar Next.js inferir o tipo de `config` |
+
+---
+
+## 🤝 Política de Colaboração e Commits
+
+**O projeto é de autoria exclusiva do dono do repositório.**
+
+- Commits **nunca** devem mencionar ferramentas de IA, assistentes, ou qualquer coparticipante externo
+- Não usar `Co-Authored-By`, créditos automáticos, ou qualquer metadata que indique colaboração externa
+- Mensagens de commit seguem o padrão já estabelecido no histórico: `Feat:`, `Fix:`, `Refactor:` etc.
+- O histórico do Git deve refletir apenas o trabalho do dono do projeto
+
+---
+
 ## 🎨 UI/UX Standards (Premium Fintech)
 - **Palette**: Background `#07111F`, Cards `#0F1B2D`, Highlights `#3B82F6` (Blue) and `#22C55E` (Emerald).
 - **Extraction Flow**: 3-step visualization (Settings -> Progress -> Completed).
-- **Analysis Page**: Professional layout with stat cards, candlestick chart, trade journal table, and two histograms.
+- **Analysis Page**: Charts acima, Trade Journal com scroll abaixo. Sem stat cards, sem gráfico de preço na view principal.
 - **Simplification**: Date inputs are **Date-Only**. The backend automatically appends `T00:00:00` and `T23:59:59` to maintain data integrity without cluttering the UI with time pickers.
 
 ---
 
 ## 📍 Current Status
 - **Extraction**: Fully functional. Data flows from API to DB and shows real-time progress via SSE.
-- **Analysis Page**: Fully operational. Symbol dropdown loads instantly from local database, error messages display properly, candlestick chart renders with 20k+ candles smoothly (<50ms updates).
-- **Analysis Metrics**: Real calculation logic implemented for **Sharpe Ratio**, **Calmar Ratio**, **Max Drawdown**, and **Total Return**.
-- **TradingView Chart**: `lightweight-charts` v5 integrated with entry/exit markers, optimized rendering with 3-phase lifecycle.
-- **Database**: Migrations run automatically on backend container startup via entrypoint script.
-- **Docker Development**: Frontend uses Webpack with polling (Windows-compatible), backend uses Alembic init before uvicorn.
+- **Extraction History**: Nova tela `/previous` mostrando todos os jobs com asset, intervalo, range, duração, candles e status colorido.
+- **Analysis Page**: Layout reorganizado — dois gráficos lado a lado no topo, Trade Journal com scroll abaixo. Sem stat cards nem gráfico de preço.
+- **Week Frequency chart**: Barras com gradiente amarelo→vermelho por frequência, dois percentuais (local verde + global azul), legenda com borda, bucket ≥0 oculto.
+- **Return Distribution chart**: Barras verdes, bucket ≥0 removido, percentuais no topo, legenda explicativa.
+- **Trade Journal**: Exibe todos os trades sem limite, scroll interno, header sticky, contador de trades.
+- **Sidebar**: Recolhível com botão toggle — modo expandido (288px) e colapsado (68px com ícones + tooltip).
+- **Analysis Metrics**: Sharpe Ratio, Calmar Ratio, Max Drawdown, Total Return implementados.
+- **Database**: Migrations rodam automaticamente no startup via entrypoint script.
+- **Docker Development**: Frontend usa Webpack com polling (Windows-compatible).
 - **All containers healthy**: DB (`:5440`), Backend (`:8001`), Frontend (`:3002`).
-- **CORS**: Configured in `main.py` to allow `localhost:3000`, `localhost:3001`, `localhost:3002`.
-- **File Watching**: Reliable hot-reload via polling in Docker (Turbopack + Windows inotify conflict resolved).
+- **CORS**: Configurado em `main.py` para `localhost:3000`, `3001`, `3002`.
+- **CI/CD**: 4 checks obrigatórios passando — ruff, mypy, eslint, typecheck.
 
 ---
 
@@ -153,19 +199,22 @@ frontend/
     │   ├── page.tsx                 — Extraction page (3-step flow: form → progress → completed)
     │   └── analysis/page.tsx        — Analysis page (form + stat cards + chart + histograms + table)
     │                                   (MODIFIED) Error banner, marker generation, candle fetching
-    └── components/features/
-        ├── analysis-form.tsx        — (MODIFIED) Uses /extractions/symbols endpoint, state machine, cancellation
-        ├── analysis-results-table.tsx  — Trade journal table with per-trade P&L
-        ├── histogram-charts.tsx     — (MODIFIED) Fixed Recharts v3 LabelList compatibility
-        ├── price-chart.tsx          — (MODIFIED) 3-phase lifecycle (create, data, markers), optimal perf
-        ├── extraction-form.tsx      — Extraction settings form
-        ├── extraction-progress.tsx  — SSE-driven real-time progress bar
-        └── extraction-completed.tsx — Completion screen
+    ├── components/features/
+    │   ├── analysis-form.tsx        — Uses /extractions/symbols, typed state machine, cancellation flag
+    │   ├── analysis-results-table.tsx  — Trade journal: todos os trades, scroll interno, sticky header
+    │   ├── histogram-charts.tsx     — Week Frequency (gradiente + dual %) + Return Distribution (verde)
+    │   ├── price-chart.tsx          — Candlestick chart (não usado na view principal atualmente)
+    │   ├── extraction-form.tsx      — Extraction settings form
+    │   ├── extraction-progress.tsx  — SSE-driven real-time progress bar
+    │   └── extraction-completed.tsx — Completion screen (sem botões de ação)
+    └── components/layout/
+        └── sidebar.tsx              — (NEW) Sidebar recolhível com toggle ChevronLeft/Right
 ```
 
 ### Key Endpoints Reference
 - **GET `/symbols/?q={query}`** — Search Binance symbols (slow, external API). Use for **extraction form**.
 - **GET `/extractions/symbols`** — List user's extracted symbols (instant, local DB). Use for **analysis form**.
+- **GET `/extractions/history`** — Lista todos os jobs de extração (id, symbol, status, candles, duração).
 - **POST `/analysis/weekly-window`** — Run analysis with entry/exit rules. Returns stats + per-window results.
 - **GET `/analysis/candles`** — Fetch candlesticks for chart (filtered by symbol, interval, date range).
 
@@ -173,8 +222,9 @@ frontend/
 
 ## 🚀 Next Steps (Priority)
 1. **Backtesting Engine**: Expand the analysis module to support more complex strategies beyond weekly windows (e.g., RSI-filtered entries, trend-following conditions).
-2. **Analysis Persistence**: Add functionality to save and name analyses for later retrieval (the sidebar already has "Previous Analyses" and "Saved Analyses" stubs, both disabled).
+2. **Analysis Persistence**: Save and name analyses for later retrieval (sidebar has "Saved Analyses" stub, disabled).
 3. **Advanced Filtering**: Allow filtering results by specific market conditions.
+4. **Schedules**: Automate recurring extractions (sidebar has "Schedules" stub, disabled).
 
 ---
 
@@ -184,14 +234,19 @@ frontend/
 - Fixed 7 critical issues (hydration, volumes, ports, Turbopack caching, node_modules, missing imports, lightweight-charts v5)
 
 **Session 2 (Analysis Page Deep Fix)** — May 08, 2026:
-- Fixed 7 additional issues blocking analysis page functionality:
-  - Turbopack file watching on Windows Docker (switched to Webpack + polling)
-  - Database migrations not auto-running (created entrypoint.sh + modified env.py)
-  - Analysis form calling slow Binance API instead of local DB (endpoint fix + state machine + error handling)
-  - Price chart performance regression with 20k+ candles (3-phase lifecycle optimization)
-  - Recharts v3 compatibility (fixed LabelList render function)
-  - Ghost Python process interference (cleanup instruction added)
+- Fixed 7 issues: Turbopack/Windows, migrations auto-run, endpoint errado, chart performance, Recharts v3, ghost process
+
+**Session 3 (UI Redesign + Extraction History + CI/CD)** — May 08, 2026:
+- **Visual**: removidos stat cards e gráfico de preço da análise; reorganizado layout (charts em cima, tabela embaixo)
+- **Trade Journal**: limite de 15 removido, scroll interno adicionado
+- **Week Frequency**: renomeado, gradiente amarelo→vermelho, dois percentuais (local/global), legenda, sem bucket ≥0
+- **Return Distribution**: barras verdes, bucket ≥0 removido, percentuais nas barras, legenda
+- **Sidebar**: collapse/expand com toggle, transição suave, ícone-only no modo colapsado
+- **Extraction History**: nova tela `/previous` com endpoint `GET /extractions/history` no backend
+- **CI/CD**: descoberta do processo `ruff` + `mypy` + `eslint` + `typecheck` obrigatórios antes do push
+- **Principais desafios de CI**: tipos Polars (cast vs float()), Recharts LabelList (`object` + cast interno), setState síncrono em useEffect, webpack types em next.config.ts
+- **Política de commits**: sem menção a ferramentas externas, sem co-authorship, histórico exclusivamente do dono
 
 ---
 **Document updated on: May 08, 2026**
-**Status: All critical bugs fixed. System fully operational and performant. Ready for feature expansion.**
+**Status: Sistema operacional, CI verde, UI redesenhada. Pronto para expansão de features.**
