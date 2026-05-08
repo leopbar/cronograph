@@ -15,7 +15,10 @@ class BinanceKLine(BaseModel):
     volume: float
 
 class BinanceAdapter:
-    BASE_URL = "https://api.binance.com"
+    # data-api.binance.vision is Binance's official global market data mirror.
+    # It uses the same REST API as api.binance.com but has no geo-restrictions
+    # (api.binance.com returns 451 from US-based servers).
+    BASE_URL = "https://data-api.binance.vision"
     
     def __init__(self):
         self.client = httpx.AsyncClient(base_url=self.BASE_URL, timeout=30.0)
