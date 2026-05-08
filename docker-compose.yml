@@ -21,8 +21,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cronograph_backend
-    # volumes:
-    #   - ./backend:/app
+    volumes:
+      - ./backend:/app
+      - /app/.venv
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:password@db:5432/cronograph
       - PYTHONPATH=src
@@ -35,18 +36,19 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:8001
+      dockerfile: Dockerfile.dev
     container_name: cronograph_frontend
-    # volumes:
-    #   - ./frontend:/app
-    #   - /app/node_modules
-    #   - /app/.next
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     ports:
-      - "3001:3000"
+      - "3002:3000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - CHOKIDAR_INTERVAL=800
     depends_on:
       - backend
 

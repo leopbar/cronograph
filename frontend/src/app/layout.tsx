@@ -1,23 +1,12 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Cronograph | Quantitative Crypto Analysis",
   description: "Advanced quantitative analysis platform for crypto assets.",
 };
 
-import { Header } from "@/components/layout/header";
+import { Sidebar } from "@/components/layout/sidebar";
 
 export default function RootLayout({
   children,
@@ -27,12 +16,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className="h-full antialiased dark"
     >
-      <body className="min-h-full flex flex-col bg-background font-sans">
-        <Header />
-        {children}
+      <body 
+        className="flex h-screen overflow-hidden bg-[#07111F] text-white antialiased font-sans"
+      >
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-blue-glow">
+          {children}
+        </main>
       </body>
     </html>
   );
 }
+

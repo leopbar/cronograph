@@ -47,6 +47,34 @@ async def start_extraction(request: ExtractionPreviewRequest, db: AsyncSession =
     return {"job_id": str(job.id)}
 
 
+@router.get("/history")
+async def get_extraction_history(db: AsyncSession = Depends(get_db)):
+    stmt = select(ExtractionJob).order_by(ExtractionJob.started_at.desc())
+    result = await db.execute(stmt)
+    jobs = result.scalars().all()
+    return [
+        {
+            "id": str(j.id),
+            "symbol": j.symbol,
+            "interval": j.interval,
+            "range_from": j.range_from.isoformat() if j.range_from else None,
+            "range_to": j.range_to.isoformat() if j.range_to else None,
+            "status": j.status,
+            "candles_done": j.candles_done,
+            "candles_total": j.candles_total,
+            "started_at": j.started_at.isoformat() if j.started_at else None,
+            "finished_at": j.finished_at.isoformat() if j.finished_at else None,
+            "error": j.error,
+        }
+        for j in jobs
+    ]
+
+@router.get("/symbols")
+async def get_extracted_symbols(db: AsyncSession = Depends(get_db)):
+    stmt = select(Coverage.symbol).distinct()
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
 @router.get("/coverage")
 async def get_coverage_history(db: AsyncSession = Depends(get_db)):
     stmt = select(Coverage).order_by(Coverage.symbol, Coverage.range_from.desc())

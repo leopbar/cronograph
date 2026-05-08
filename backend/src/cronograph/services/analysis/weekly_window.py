@@ -1,5 +1,5 @@
 import polars as pl
-from datetime import time
+from datetime import time, datetime
 from typing import List
 from cronograph.services.analysis.histogram import WeeklyResult
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,18 +17,22 @@ class WeeklyWindowAnalysis:
         interval: str,
         entry_weekday: int,
         entry_time: time,
-        entry_price_type: str, # "open" or "close"
+        entry_price_type: str,
         exit_weekday: int,
         exit_time: time,
-        exit_price_type: str   # "open" or "close"
+        exit_price_type: str,
+        range_from: datetime,
+        range_to: datetime
     ) -> List[WeeklyResult]:
         """
         Calculates the diff for each week in the available data.
         """
-        # 1. Fetch data from DB
+        # 1. Fetch data from DB within date range
         stmt = select(Candle).where(
             Candle.symbol == symbol,
-            Candle.interval == interval
+            Candle.interval == interval,
+            Candle.open_time >= range_from,
+            Candle.open_time <= range_to
         ).order_by(Candle.open_time)
         
         result = await self.db.execute(stmt)
@@ -87,7 +91,7 @@ class WeeklyWindowAnalysis:
                 entry_price=round(float(row["entry_price"]), 2),
                 exit_price=round(float(row["exit_price"]), 2),
                 diff=round(float(row["diff"]), 2),
-                pct_change=round(float(row["pct_change"]), 2)
+                return_pct=round(float(row["pct_change"]), 2)
             )
             for row in results.to_dicts()
         ]

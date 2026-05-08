@@ -2,40 +2,21 @@
 
 import * as React from "react";
 import { SymbolSearch } from "./symbol-search";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { getExtractionPreview, startExtraction, ExtractionEstimate } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
-import { ExtractionProgress } from "./extraction-progress";
+import { startExtraction } from "@/lib/api";
+import { Play } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function ExtractionForm() {
-  const [symbol, setSymbol] = React.useState("");
-  const [interval, setInterval] = React.useState("1h");
+interface Props {
+  onStart: (jobId: string) => void;
+  disabled?: boolean;
+}
+
+export function ExtractionForm({ onStart, disabled }: Props) {
+  const [symbol, setSymbol] = React.useState("BTCUSDT");
+  const [interval, setInterval] = React.useState("1m");
   const [rangeFrom, setRangeFrom] = React.useState("");
   const [rangeTo, setRangeTo] = React.useState("");
-  const [estimate, setEstimate] = React.useState<ExtractionEstimate | null>(null);
   const [loading, setLoading] = React.useState(false);
-  const [jobId, setJobId] = React.useState<string | null>(null);
-
-  const handlePreview = async () => {
-    if (!symbol || !rangeFrom || !rangeTo) return;
-    setLoading(true);
-    try {
-      const result = await getExtractionPreview({
-        symbol,
-        interval,
-        range_from: new Date(`${rangeFrom}T00:00:00`).toISOString(),
-        range_to: new Date(`${rangeTo}T23:59:59`).toISOString(),
-      });
-      setEstimate(result);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStart = async () => {
     if (!symbol || !rangeFrom || !rangeTo) return;
@@ -47,8 +28,7 @@ export function ExtractionForm() {
         range_from: new Date(`${rangeFrom}T00:00:00`).toISOString(),
         range_to: new Date(`${rangeTo}T23:59:59`).toISOString(),
       });
-      setJobId(job_id);
-      // Here we would normally redirect or show progress
+      onStart(job_id);
     } catch (error) {
       console.error(error);
     } finally {
@@ -56,97 +36,85 @@ export function ExtractionForm() {
     }
   };
 
-  return (
-    <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
-        <CardTitle>Extract Market Data</CardTitle>
-        <CardDescription>
-          Download OHLCV data from Binance to your local database.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <Label>Symbol</Label>
-          <SymbolSearch value={symbol} onChange={setSymbol} />
-        </div>
+  const inputClasses = "flex h-[52px] w-full rounded-[12px] border border-white/10 bg-[#0F1B2D] px-4 py-2 text-sm text-white placeholder:text-[#7C8BA1] focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all duration-200";
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Interval</Label>
+  return (
+    <div className="rounded-[16px] border border-white/5 bg-[#0F1B2D] shadow-2xl overflow-hidden">
+      <div className="px-8 py-5 border-b border-white/5">
+        <h2 className="text-xl font-bold text-white tracking-tight">Extraction Settings</h2>
+      </div>
+      
+      <div className="p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[1fr_1fr_1fr_1fr_auto] gap-6 items-end">
+          
+          <div className="w-full space-y-2.5">
+            <label className="text-sm font-semibold text-[#B6C2D1] ml-1">Symbol</label>
+            <SymbolSearch 
+              value={symbol} 
+              onChange={setSymbol} 
+              className={cn(inputClasses, "border-white/10")} 
+            />
+            <p className="text-[12px] font-medium text-[#7C8BA1] ml-1">BTC, ETH or OTHERS</p>
+          </div>
+
+          <div className="w-full space-y-2.5">
+            <label className="text-sm font-semibold text-[#B6C2D1] ml-1">Interval</label>
             <select 
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className={cn(inputClasses, "appearance-none")}
               value={interval}
               onChange={(e) => setInterval(e.target.value)}
+              disabled={disabled}
             >
-              <option value="1m">1 minute</option>
-              <option value="1h">1 hour</option>
+              <option value="1m">1 Minute</option>
+              <option value="1h">1 Hour</option>
             </select>
+            <p className="text-[12px] font-medium text-[#7C8BA1] ml-1">1 Minute or 1 Hour</p>
           </div>
-        </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>From</Label>
-            <Input 
-              type="date" 
-              value={rangeFrom} 
-              onChange={(e) => setRangeFrom(e.target.value)} 
-            />
+          <div className="w-full space-y-2.5">
+            <label className="text-sm font-semibold text-[#B6C2D1] ml-1">Start Date</label>
+            <div className="relative">
+              <input 
+                type="date" 
+                className={inputClasses}
+                value={rangeFrom} 
+                onChange={(e) => setRangeFrom(e.target.value)}
+                disabled={disabled}
+              />
+            </div>
+            <p className="text-[12px] font-medium text-[#7C8BA1] ml-1 opacity-0 select-none">Spacer</p>
           </div>
-          <div className="space-y-2">
-            <Label>To</Label>
-            <Input 
-              type="date" 
-              value={rangeTo} 
-              onChange={(e) => setRangeTo(e.target.value)} 
-            />
-          </div>
-        </div>
 
-        {estimate && (
-          <div className="p-4 rounded-lg bg-muted space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Estimated Candles</span>
-              <Badge variant="secondary">{estimate.candles_total.toLocaleString()}</Badge>
+          <div className="w-full space-y-2.5">
+            <label className="text-sm font-semibold text-[#B6C2D1] ml-1">End Date</label>
+            <div className="relative">
+              <input 
+                type="date" 
+                className={inputClasses}
+                value={rangeTo} 
+                onChange={(e) => setRangeTo(e.target.value)}
+                disabled={disabled}
+              />
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Requests</span>
-              <Badge variant="secondary">{estimate.requests_total}</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">ETA</span>
-              <Badge variant="secondary">{estimate.eta_seconds}s</Badge>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Estimated Size</span>
-              <Badge variant="secondary">{estimate.mb_estimate} MB</Badge>
-            </div>
+            <p className="text-[12px] font-medium text-[#7C8BA1] ml-1 opacity-0 select-none">Spacer</p>
           </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex gap-4">
-        <Button 
-          variant="outline" 
-          className="flex-1" 
-          onClick={handlePreview}
-          disabled={loading || !symbol || !rangeFrom || !rangeTo}
-        >
-          Estimate
-        </Button>
-        <Button 
-          className="flex-1" 
-          onClick={handleStart}
-          disabled={loading || !symbol || !rangeFrom || !rangeTo}
-        >
-          {loading ? "Starting..." : "Start Extraction"}
-        </Button>
-      </CardFooter>
-      
-      {jobId && (
-        <div className="p-6 border-t bg-muted/30">
-          <ExtractionProgress jobId={jobId} />
+
+          <div className="w-full space-y-2.5 mt-4 xl:mt-0">
+            <label className="text-sm font-semibold ml-1 opacity-0 select-none hidden xl:block">Action</label>
+            <button
+              onClick={handleStart}
+              disabled={disabled || loading || !symbol || !rangeFrom || !rangeTo}
+              className="flex h-[52px] w-full xl:w-[180px] items-center justify-center gap-3 rounded-[12px] btn-success px-4 text-[15px] font-bold text-white shadow-[0_4px_15px_rgba(34,197,94,0.3)] hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              <Play className="h-5 w-5 fill-white shrink-0" />
+              {loading ? "Starting..." : "Start Extraction"}
+            </button>
+            <p className="text-[12px] font-medium ml-1 opacity-0 select-none hidden xl:block">Spacer</p>
+          </div>
+
         </div>
-      )}
-    </Card>
+      </div>
+    </div>
   );
 }
+
