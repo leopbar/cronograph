@@ -29,8 +29,12 @@ log "Building Docker images..."
 $COMPOSE build --no-cache
 
 # --- Restart services ---
-log "Restarting services..."
-$COMPOSE up -d --remove-orphans
+log "Stopping previous containers (clears any orphaned name conflicts)..."
+$COMPOSE down --remove-orphans || true
+docker container prune -f >> "$LOG_FILE" 2>&1 || true
+
+log "Starting services..."
+$COMPOSE up -d --remove-orphans --force-recreate
 
 # --- Health check ---
 log "Waiting for backend health check..."
