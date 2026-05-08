@@ -1,13 +1,13 @@
 "use client";
 
-// useSearchParams requires Suspense for static rendering; force-dynamic skips prerender
-export const dynamic = "force-dynamic";
-
+import { Suspense } from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { loginApi } from "@/lib/api";
 
-export default function LoginPage() {
+// Inner component isolates useSearchParams so it can be wrapped in Suspense
+// (required by Next.js 16 Turbopack for pages that use useSearchParams)
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
@@ -104,5 +104,13 @@ export default function LoginPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
