@@ -46,6 +46,12 @@ I'll provide you with test credentials to explore:
 - Probability distributions and win rate calculations
 - Admin dashboard (upon request)
 
+### 🎬 Live Demo
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="Cronograph Demo" width="800" />
+</p>
+
 ---
 
 ## 🎯 Why Cronograph?
