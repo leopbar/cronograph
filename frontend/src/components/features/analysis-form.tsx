@@ -35,10 +35,10 @@ export function AnalysisForm({ onRun, loading }: AnalysisFormProps) {
   const [rangeTo, setRangeTo] = React.useState(new Date().toISOString().split('T')[0]);
   const [entryWeekday, setEntryWeekday] = React.useState("0");
   const [entryTime, setEntryTime] = React.useState("14:00");
-  const [entryPriceType, setEntryPriceType] = React.useState("open");
+  const [entryPriceType] = React.useState("open");
   const [exitWeekday, setExitWeekday] = React.useState("4");
   const [exitTime, setExitTime] = React.useState("07:00");
-  const [exitPriceType, setExitPriceType] = React.useState("open");
+  const [exitPriceType] = React.useState("open");
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
