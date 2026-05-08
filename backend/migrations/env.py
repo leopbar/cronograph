@@ -7,6 +7,13 @@ from sqlalchemy import pool
 from alembic import context
 
 from cronograph.models.candle import Base
+# Import all models so Alembic can autogenerate migrations
+import cronograph.models.coverage  # noqa: F401
+import cronograph.models.extraction_job  # noqa: F401
+import cronograph.models.user  # noqa: F401
+import cronograph.models.refresh_token  # noqa: F401
+import cronograph.models.access_blocklist  # noqa: F401
+import cronograph.models.audit_log  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

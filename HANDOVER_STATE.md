@@ -140,6 +140,7 @@ npm run typecheck   # tsc --noEmit — verificação de tipos TypeScript
 ---
 
 ## 🎨 UI/UX Standards (Premium Fintech)
+- **Language**: **All UI text is in English — no exceptions.** Labels, buttons, error messages, placeholders, page titles, table headers, and status values must all be in English, regardless of the development conversation language. Backend error strings returned to the client also in English.
 - **Palette**: Background `#07111F`, Cards `#0F1B2D`, Highlights `#3B82F6` (Blue) and `#22C55E` (Emerald).
 - **Extraction Flow**: 3-step visualization (Settings -> Progress -> Completed).
 - **Analysis Page**: Charts acima, Trade Journal com scroll abaixo. Sem stat cards, sem gráfico de preço na view principal.
@@ -148,6 +149,10 @@ npm run typecheck   # tsc --noEmit — verificação de tipos TypeScript
 ---
 
 ## 📍 Current Status
+- **Autenticação**: Sistema completo — JWT em cookie HttpOnly, refresh token rotacionado, CSRF double-submit, rate limiting, account lockout, security headers, audit log.
+- **Admin**: Tela `/admin/users` (criar/editar/desativar/reset senha/desbloquear) e `/admin/audit` (viewer do audit log com paginação).
+- **Login**: Tela `/login` com redirect automático para rotas protegidas. First-login flow via `/change-password`.
+- **Sidebar**: Seção "Admin" visível só para role=admin, botão Logout, usuário logado exibido no footer.
 - **Extraction**: Fully functional. Data flows from API to DB and shows real-time progress via SSE.
 - **Extraction History**: Nova tela `/previous` mostrando todos os jobs com asset, intervalo, range, duração, candles e status colorido.
 - **Analysis Page**: Layout reorganizado — dois gráficos lado a lado no topo, Trade Journal com scroll abaixo. Sem stat cards nem gráfico de preço.
@@ -159,7 +164,7 @@ npm run typecheck   # tsc --noEmit — verificação de tipos TypeScript
 - **Database**: Migrations rodam automaticamente no startup via entrypoint script.
 - **Docker Development**: Frontend usa Webpack com polling (Windows-compatible).
 - **All containers healthy**: DB (`:5440`), Backend (`:8001`), Frontend (`:3002`).
-- **CORS**: Configurado em `main.py` para `localhost:3000`, `3001`, `3002`.
+- **CORS**: Configurado via `CORS_ORIGINS` em `config.py` (padrão: `localhost:3000`, `3001`, `3002`).
 - **CI/CD**: 4 checks obrigatórios passando — ruff, mypy, eslint, typecheck.
 
 ---
@@ -168,21 +173,45 @@ npm run typecheck   # tsc --noEmit — verificação de tipos TypeScript
 
 ```
 backend/
-├── entrypoint.sh                    — (NEW) Runs alembic upgrade before uvicorn startup
+├── entrypoint.sh                    — Runs alembic upgrade before uvicorn startup
 ├── Dockerfile                       — Updated CMD to use entrypoint.sh
 ├── migrations/
-│   └── env.py                       — (MODIFIED) Reads DATABASE_URL, converts asyncpg→psycopg2
+│   ├── env.py                       — (MODIFIED) Imports ALL models; reads DATABASE_URL
+│   └── versions/
+│       ├── 6efe81b7023f_initial_migration.py
+│       └── f2a70fe582b9_add_auth_tables.py  — (NEW) users, refresh_tokens, access_blocklist, audit_log
 └── src/cronograph/
-    ├── main.py                      — FastAPI app, CORS config, router registration
-    ├── api/routes/
-    │   ├── analysis.py              — POST /analysis/weekly-window, GET /analysis/candles
-    │   ├── extraction.py            — POST /extractions/, GET /extractions/{id}/stream (SSE)
-    │   └── symbols.py               — GET /symbols/ (Binance API, used for extraction discovery)
+    ├── main.py                      — (MODIFIED) + auth/admin routers, SecurityHeadersMiddleware, slowapi
+    ├── cli.py                       — (NEW) CLI: create-admin command (Typer)
+    ├── core/
+    │   ├── config.py                — (MODIFIED) + SECRET_KEY, ACCESS_TTL_MIN, REFRESH_TTL_DAYS, COOKIE_*
+    │   └── security.py              — (NEW) hash_password, verify_password, encode/decode_access_token,
+    │                                         gen_refresh_token, hash_refresh_token, gen_temp_password,
+    │                                         validate_password_strength
+    ├── api/
+    │   ├── deps.py                  — (NEW) get_current_user, require_admin (CSRF check inline)
+    │   └── routes/
+    │       ├── auth.py              — (NEW) POST /auth/login, /auth/logout, /auth/refresh,
+    │       │                                GET /auth/me, POST /auth/change-password
+    │       ├── admin.py             — (NEW) GET/POST/PATCH /admin/users, reset-password, unlock,
+    │       │                                GET /admin/audit-log
+    │       ├── analysis.py          — POST /analysis/weekly-window, GET /analysis/candles
+    │       ├── extraction.py        — POST /extractions/, GET /extractions/{id}/stream (SSE)
+    │       └── symbols.py           — GET /symbols/ (Binance API, used for extraction discovery)
+    ├── middleware/
+    │   ├── security_headers.py      — (NEW) CSP, HSTS, X-Frame-Options, etc.
+    │   └── rate_limit.py            — (NEW) slowapi limiter instance
     ├── models/
-    │   ├── candle.py                — ORM model for OHLCV candles
+    │   ├── candle.py                — Base class + OHLCV candles
+    │   ├── user.py                  — (NEW) User ORM (role, lockout, totp fields reserved)
+    │   ├── refresh_token.py         — (NEW) RefreshToken ORM with family_id for rotation detection
+    │   ├── access_blocklist.py      — (NEW) JWT jti blocklist for logout/password change
+    │   ├── audit_log.py             — (NEW) AuditLog ORM
     │   ├── coverage.py              — Tracks extracted date ranges per symbol
     │   └── extraction_job.py        — Job state machine (pending → running → done)
     └── services/
+        ├── auth_service.py          — (NEW) login_user, logout_user, refresh_tokens, change_password,
+        │                                     _handle_failed_attempt, _audit
         ├── analysis/
         │   ├── weekly_window.py     — Polars join_asof to match entry/exit candles per week
         │   └── histogram.py         — HistogramService: stats, Sharpe, Calmar, drawdown, histograms
@@ -190,28 +219,44 @@ backend/
         └── estimator.py             — Estimates extraction duration/candle count
 
 frontend/
-├── Dockerfile.dev                   — (NEW) Next.js dev with Webpack (Windows-compatible)
+├── middleware.ts                    — (NEW) Route protection: redirect to /login if no access_token cookie
+├── Dockerfile.dev                   — Next.js dev with Webpack (Windows-compatible)
 ├── package.json                     — (MODIFIED) Added "dev:docker": "next dev --webpack -H 0.0.0.0"
-├── next.config.ts                   — (MODIFIED) Webpack polling config
-├── docker-compose.yml               — (MODIFIED) Frontend service uses Dockerfile.dev, polling env vars
+├── next.config.ts                   — Webpack polling config
 └── src/
     ├── app/
+    │   ├── login/page.tsx           — (NEW) Login form
+    │   ├── change-password/page.tsx — (NEW) First-login password change (forced)
+    │   ├── admin/
+    │   │   ├── users/page.tsx       — (NEW) Admin: lista/cria/edita/desativa/reset/desbloqueia usuários
+    │   │   └── audit/page.tsx       — (NEW) Admin: viewer do audit log com paginação
     │   ├── page.tsx                 — Extraction page (3-step flow: form → progress → completed)
-    │   └── analysis/page.tsx        — Analysis page (form + stat cards + chart + histograms + table)
-    │                                   (MODIFIED) Error banner, marker generation, candle fetching
-    ├── components/features/
-    │   ├── analysis-form.tsx        — Uses /extractions/symbols, typed state machine, cancellation flag
-    │   ├── analysis-results-table.tsx  — Trade journal: todos os trades, scroll interno, sticky header
-    │   ├── histogram-charts.tsx     — Week Frequency (gradiente + dual %) + Return Distribution (verde)
-    │   ├── price-chart.tsx          — Candlestick chart (não usado na view principal atualmente)
-    │   ├── extraction-form.tsx      — Extraction settings form
-    │   ├── extraction-progress.tsx  — SSE-driven real-time progress bar
-    │   └── extraction-completed.tsx — Completion screen (sem botões de ação)
+    │   ├── analysis/page.tsx        — Analysis page
+    │   └── layout.tsx               — (MODIFIED) Usa AuthLayout (condicional sidebar)
+    ├── lib/
+    │   ├── api.ts                   — (MODIFIED) apiFetch wrapper: credentials+CSRF+auto-refresh-on-401
+    │   │                                         + loginApi, logoutApi, getMeApi, changePasswordApi,
+    │   │                                           adminListUsers, adminCreateUser, adminUpdateUser,
+    │   │                                           adminResetPassword, adminUnlockUser, adminGetAuditLog
+    │   └── auth.ts                  — (NEW) useUser() hook, logout() function
     └── components/layout/
-        └── sidebar.tsx              — (NEW) Sidebar recolhível com toggle ChevronLeft/Right
+        ├── auth-layout.tsx          — (NEW) Condicional: esconde sidebar em /login e /change-password
+        └── sidebar.tsx              — (MODIFIED) + Admin nav items (role=admin only), Logout button,
+                                                   usuário logado no footer
 ```
 
 ### Key Endpoints Reference
+- **POST `/auth/login`** — Login com username/password, seta cookies HttpOnly (access+refresh+csrf).
+- **POST `/auth/refresh`** — Rotaciona refresh token; revoga família inteira em reuso detectado.
+- **POST `/auth/logout`** — Invalida refresh, blocklista access, limpa cookies.
+- **GET `/auth/me`** — Retorna usuário logado (id, email, username, role, must_change_password).
+- **POST `/auth/change-password`** — Troca senha; revoga todos refreshes; requer CSRF.
+- **GET `/admin/users`** — Lista usuários (admin only).
+- **POST `/admin/users`** — Cria usuário com senha temporária (admin only).
+- **PATCH `/admin/users/{id}`** — Atualiza email/username/role/is_active (admin only).
+- **POST `/admin/users/{id}/reset-password`** — Gera nova senha temporária (admin only).
+- **POST `/admin/users/{id}/unlock`** — Remove lockout (admin only).
+- **GET `/admin/audit-log`** — Lista eventos com paginação (admin only).
 - **GET `/symbols/?q={query}`** — Search Binance symbols (slow, external API). Use for **extraction form**.
 - **GET `/extractions/symbols`** — List user's extracted symbols (instant, local DB). Use for **analysis form**.
 - **GET `/extractions/history`** — Lista todos os jobs de extração (id, symbol, status, candles, duração).
@@ -220,11 +265,45 @@ frontend/
 
 ---
 
+## ⚠️ Criar Primeiro Admin (Bootstrap)
+```bash
+# Rodar UMA VEZ após primeiro `docker compose up`
+docker compose run --rm backend sh -c "uv run python -c \"
+import asyncio, sys
+from datetime import datetime, timezone
+sys.path.insert(0, '/app/src')
+from cronograph.core.security import hash_password
+from cronograph.core.db import SessionLocal
+from cronograph.models.user import User
+
+async def create():
+    now = datetime.now(timezone.utc)
+    async with SessionLocal() as db:
+        user = User(email='admin@example.com', username='admin',
+                    password_hash=hash_password('SuaSenhaForte!'), role='admin',
+                    must_change_password=False, created_at=now, updated_at=now)
+        db.add(user); await db.commit(); print('Admin criado')
+
+asyncio.run(create())
+\""
+```
+
+## 🔐 Variáveis de Ambiente para Produção (VPS)
+Adicionar ao `.env` (nunca commitar):
+```
+SECRET_KEY=<python -c "import secrets; print(secrets.token_urlsafe(64))">
+COOKIE_SECURE=true
+COOKIE_DOMAIN=seu-dominio.com
+CORS_ORIGINS=["https://seu-dominio.com"]
+```
+
 ## 🚀 Next Steps (Priority)
-1. **Backtesting Engine**: Expand the analysis module to support more complex strategies beyond weekly windows (e.g., RSI-filtered entries, trend-following conditions).
-2. **Analysis Persistence**: Save and name analyses for later retrieval (sidebar has "Saved Analyses" stub, disabled).
-3. **Advanced Filtering**: Allow filtering results by specific market conditions.
-4. **Schedules**: Automate recurring extractions (sidebar has "Schedules" stub, disabled).
+1. **2FA TOTP**: Colunas `totp_secret` e `totp_enabled` já existem no modelo. Implementar `pyotp` para obrigatoriedade no admin.
+2. **VPS Deploy**: Caddy (auto TLS), ufw firewall, Docker expostos somente via proxy reverso.
+3. **Backtesting Engine**: Expand the analysis module to support more complex strategies beyond weekly windows (e.g., RSI-filtered entries, trend-following conditions).
+4. **Analysis Persistence**: Save and name analyses for later retrieval (sidebar has "Saved Analyses" stub, disabled).
+5. **Advanced Filtering**: Allow filtering results by specific market conditions.
+6. **Schedules**: Automate recurring extractions (sidebar has "Schedules" stub, disabled).
 
 ---
 
@@ -247,6 +326,15 @@ frontend/
 - **Principais desafios de CI**: tipos Polars (cast vs float()), Recharts LabelList (`object` + cast interno), setState síncrono em useEffect, webpack types em next.config.ts
 - **Política de commits**: sem menção a ferramentas externas, sem co-authorship, histórico exclusivamente do dono
 
+**Session 4 (Authentication System)** — May 08, 2026:
+- **Auth strategy**: JWT HS256 em cookie HttpOnly (access 15min + refresh 14d rotacionado com detecção de reuso via family_id)
+- **Security stack**: Argon2id (time=3, mem=64MB), CSRF double-submit, rate limit 5/15min por IP, account lockout progressivo (5→15min, 10→1h, 15→admin unlock)
+- **Backend novos**: `core/security.py`, `services/auth_service.py`, `api/deps.py`, routes `auth.py` + `admin.py`, middleware `security_headers.py` + `rate_limit.py`, modelos `user`, `refresh_token`, `access_blocklist`, `audit_log`, migration `f2a70fe582b9`
+- **Frontend novos**: `middleware.ts` (proteção de rotas), `lib/auth.ts`, `/login`, `/change-password`, `/admin/users`, `/admin/audit`, `components/layout/auth-layout.tsx`
+- **CLI**: `cli.py` com `create-admin` command via Typer
+- **Desafios CI**: `**kwargs` em `set_cookie` rejeitado por mypy → refatorado para parâmetros explícitos; `_audit` importado mas não usado → removido; `jwt` import não usado → removido; `setLoading(true)` síncrono em useEffect → IIFE async
+- **Desafio migration**: Alembic detectava tabelas existentes como "removed" por falta de imports dos modelos em `env.py` → adicionados todos os imports
+
 ---
 **Document updated on: May 08, 2026**
-**Status: Sistema operacional, CI verde, UI redesenhada. Pronto para expansão de features.**
+**Status: Sistema operacional, autenticação completa, CI verde. Pronto para deploy em VPS e expansão de features.**
