@@ -3,7 +3,7 @@
 > **Production-ready quantitative analysis platform for Bitcoin options trading.** Extract high-resolution market data from Binance and instantly analyze optimal strike prices for weekly OTM call options.
 
 <p align="center">
-  <a href="https://cronograph.duckdns.org/">
+  <a href="https://cronograph.lbai.dev/">
     <img src="https://img.shields.io/badge/🚀_Live_App-Production-success?style=for-the-badge" alt="Live Production App" />
   </a>
   <a href="https://www.linkedin.com/in/leonardo-barretti/">
@@ -29,7 +29,7 @@
 
 ## 🚀 Live Application
 
-**Cronograph is live in production:** https://cronograph.duckdns.org/
+**Cronograph is live in production:** https://cronograph.lbai.dev/
 
 The application is running on a production VPS with full authentication, database persistence, and real-time analysis capabilities.
 
@@ -169,7 +169,7 @@ This transforms options trading from **intuition** to **statistical edge**.
 
 **No installation needed.** Access the live application at:
 
-🌐 **https://cronograph.duckdns.org/**
+🌐 **https://cronograph.lbai.dev/**
 
 To request test credentials, email [lbarretti@gmail.com](mailto:lbarretti@gmail.com).
 
@@ -376,7 +376,7 @@ MIT License. See [LICENSE](LICENSE) for details.
 - 💼 **LinkedIn**: [linkedin.com/in/leonardo-barretti](https://www.linkedin.com/in/leonardo-barretti/)
 - 📧 **Email**: [lbarretti@gmail.com](mailto:lbarretti@gmail.com)
 - 🐙 **GitHub**: [@leopbar](https://github.com/leopbar)
-- 🚀 **Live App**: [cronograph.duckdns.org](https://cronograph.duckdns.org/)
+- 🚀 **Live App**: [cronograph.lbai.dev](https://cronograph.lbai.dev/)
 
 > **Interested in the platform?** Email me at [lbarretti@gmail.com](mailto:lbarretti@gmail.com) with "Cronograph Demo Access" in the subject line.
 
