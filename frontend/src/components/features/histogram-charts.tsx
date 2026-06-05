@@ -1,17 +1,6 @@
 "use client";
 
 import * as React from "react";
-import {
-  BarChart,
-  Bar,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LabelList,
-} from "recharts";
 
 export interface HistogramItem {
   label: string;
@@ -19,172 +8,245 @@ export interface HistogramItem {
   count: number;
 }
 
-export function CumulativeHistogram({ data }: { data: HistogramItem[] }) {
-  const filtered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
+export interface ExportRow {
+  label: string;
+  count: number;
+  pct1: number;   // primary % (green)
+  pct2?: number;  // secondary % (blue) — discrete only
+}
 
-  const renderLabel = (props: object) => {
-    const { x, y, width, value } = props as { x?: number; y?: number; width?: number; value?: number };
-    const xn = Number(x ?? 0);
-    const yn = Number(y ?? 0);
-    const wn = Number(width ?? 0);
-    if (value == null) return null;
-    return (
-      <text x={xn + wn / 2} y={yn - 6} fill="#34D399" textAnchor="middle" fontSize={9} fontWeight="bold">
-        {value.toFixed(1)}%
-      </text>
-    );
-  };
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
 
+function ModeToggle({ mode, setMode }: { mode: 'usd' | 'pct'; setMode: (m: 'usd' | 'pct') => void }) {
   return (
-    <div className="h-full w-full relative">
-      {/* Legend */}
-      <div
-        className="absolute top-0 right-0 z-10 flex flex-col gap-2 text-[12px] px-3 py-2.5 rounded-lg"
-        style={{ border: '1px solid rgba(255,255,255,0.25)', backgroundColor: '#07111F' }}
+    <div className="flex gap-1 px-2 py-1.5 rounded-lg w-fit"
+      style={{ border: '1px solid rgba(255,255,255,0.25)', backgroundColor: '#07111F' }}>
+      <button
+        onClick={() => setMode('usd')}
+        className="px-2 py-0.5 rounded text-[10px] font-bold transition-colors"
+        style={mode === 'usd' ? { backgroundColor: 'rgba(251,191,36,0.15)', color: '#FBBF24' } : { color: '#7C8BA1' }}
       >
-        <div className="flex items-center gap-2">
-          <span style={{ color: '#34D399' }}>■</span>
-          <span style={{ color: '#34D399' }}>% of weeks with return ≥ range</span>
-        </div>
-        <div className="pt-1 text-[11px] leading-relaxed" style={{ color: '#7C8BA1', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          Cumulative — each bar shows how many<br />weeks achieved <em>at least</em> that return
-        </div>
-      </div>
-
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={filtered}
-          margin={{ top: 28, right: 10, left: -20, bottom: 0 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1A2940" />
-          <XAxis
-            dataKey="label"
-            fontSize={9}
-            tick={{ fill: '#7C8BA1' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            fontSize={9}
-            tick={{ fill: '#7C8BA1' }}
-            axisLine={false}
-            tickLine={false}
-            unit="%"
-          />
-          <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const item = payload[0].payload as HistogramItem;
-              return (
-                <div style={{ backgroundColor: '#0F1B2D', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '10px 14px', fontSize: '11px', lineHeight: '1.8' }}>
-                  <p style={{ color: '#fff', fontWeight: 700 }}>Range: {item.label}</p>
-                  <p style={{ color: '#fff' }}>Weeks with return at least this value</p>
-                  <p style={{ color: '#34D399', fontWeight: 700 }}>{item.value?.toFixed(1)}% of all weeks</p>
-                </div>
-              );
-            }}
-          />
-          <Bar dataKey="value" fill="#22C55E" radius={[3, 3, 0, 0]}>
-            <LabelList dataKey="value" content={renderLabel} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+        USD
+      </button>
+      <button
+        onClick={() => setMode('pct')}
+        className="px-2 py-0.5 rounded text-[10px] font-bold transition-colors"
+        style={mode === 'pct' ? { backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA' } : { color: '#7C8BA1' }}
+      >
+        %
+      </button>
     </div>
   );
 }
 
-export function DiscreteHistogram({ data }: { data: HistogramItem[] }) {
-  // Remove the ≥ 0 / 0-1000 bucket — only show from 1000 onwards
-  const filtered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
+export const fmtUsd = (n: number) =>
+  `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
-  const maxCount = Math.max(...filtered.map(d => d.count), 1);
-  const totalFiltered = filtered.reduce((sum, d) => sum + d.count, 0);
-  const totalAll = data.reduce((sum, d) => sum + d.count, 0);
+export function prettyUsdLabel(label: string): string {
+  const ge = label.match(/^≥\s*(\d+)/);
+  if (ge) return `≥ ${fmtUsd(Number(ge[1]))}`;
+  const range = label.match(/^(\d+)[-–](\d+)$/);
+  if (range) return `${fmtUsd(Number(range[1]))}–${fmtUsd(Number(range[2]))}`;
+  return label;
+}
+
+const thBase = "px-4 py-2.5 text-[11px] font-bold text-[#4F5B70] uppercase tracking-wider";
+const tdBase = "px-4 py-2.5 text-[13px]";
+
+// ---------------------------------------------------------------------------
+// Return Distribution (cumulative) — table
+// ---------------------------------------------------------------------------
+
+interface CumulativeTableProps {
+  data: HistogramItem[];
+  results: Array<{ return_pct: number }>;
+  onExportData?: (rows: ExportRow[], mode: 'usd' | 'pct', title: string) => void;
+}
+
+export function CumulativeTable({ data, results, onExportData }: CumulativeTableProps) {
+  const [mode, setMode] = React.useState<'usd' | 'pct'>('usd');
+
+  const usdFiltered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
+
+  const pctFiltered = React.useMemo(() => {
+    if (results.length === 0) return [];
+    const total = results.length;
+    const maxPct = Math.floor(Math.max(...results.map(r => r.return_pct)));
+    const items: HistogramItem[] = [];
+    for (let threshold = 1; threshold <= maxPct; threshold++) {
+      const count = results.filter(r => r.return_pct >= threshold).length;
+      items.push({ label: `≥ ${threshold}%`, count, value: (count / total) * 100 });
+    }
+    return items;
+  }, [results]);
+
+  const rows = mode === 'usd' ? usdFiltered : pctFiltered;
+  const maxValue = Math.max(...rows.map(r => r.value), 1);
+
+  // Expose current data to parent for PDF export
+  React.useEffect(() => {
+    if (!onExportData) return;
+    const exportRows: ExportRow[] = rows.map(item => ({
+      label: mode === 'usd' ? prettyUsdLabel(item.label) : item.label,
+      count: item.count,
+      pct1: item.value,
+    }));
+    onExportData(exportRows, mode, 'Return Distribution');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, mode]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between shrink-0 mb-3">
+        <ModeToggle mode={mode} setMode={setMode} />
+        <span className="text-[10px] text-[#4F5B70] leading-tight text-right">
+          Cumulative — weeks that achieved<br /><em>at least</em> that {mode === 'usd' ? 'return' : '% return'}
+        </span>
+      </div>
+
+      <div className="flex-1 overflow-auto rounded-lg border border-white/5">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-[#0F1B2D] z-10">
+            <tr className="border-b border-white/5">
+              <th className={thBase}>Return ≥</th>
+              <th className={`${thBase} text-right`}>Weeks</th>
+              <th className={`${thBase} text-right`}>% of weeks</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.03]">
+            {rows.map((item, idx) => (
+              <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                <td className={`${tdBase} font-bold text-white`}>
+                  {mode === 'usd' ? prettyUsdLabel(item.label) : item.label}
+                </td>
+                <td className={`${tdBase} text-right font-mono text-[#B6C2D1]`}>{item.count}</td>
+                <td className={`${tdBase} text-right font-mono font-bold relative`}>
+                  <span
+                    className="absolute inset-y-1 right-1 rounded"
+                    style={{ width: `${(item.value / maxValue) * 100}%`, backgroundColor: 'rgba(52,211,153,0.10)', maxWidth: '100%' }}
+                  />
+                  <span className="relative" style={{ color: '#34D399' }}>{item.value.toFixed(1)}%</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Week Frequency (discrete) — table
+// ---------------------------------------------------------------------------
+
+interface DiscreteTableProps {
+  data: HistogramItem[];
+  results: Array<{ return_pct: number }>;
+  onExportData?: (rows: ExportRow[], mode: 'usd' | 'pct', title: string) => void;
+}
+
+export function DiscreteTable({ data, results, onExportData }: DiscreteTableProps) {
+  const [mode, setMode] = React.useState<'usd' | 'pct'>('usd');
+
+  const usdFiltered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
+
+  const pctFiltered = React.useMemo(() => {
+    const buckets = new Map<number, number>();
+    for (const r of results) {
+      if (r.return_pct < 0) continue;
+      const bucket = Math.floor(r.return_pct);
+      buckets.set(bucket, (buckets.get(bucket) || 0) + 1);
+    }
+    const total = results.length;
+    return Array.from(buckets.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([bucket, count]) => ({
+        label: `${bucket}%-${bucket + 1}%`,
+        count,
+        value: (count / total) * 100,
+      }));
+  }, [results]);
+
+  const rows = mode === 'usd' ? usdFiltered : pctFiltered;
+
+  const totalFiltered = rows.reduce((sum, d) => sum + d.count, 0);
+  const totalAll = mode === 'usd' ? data.reduce((sum, d) => sum + d.count, 0) : results.length;
   const hiddenCount = totalAll - totalFiltered;
   const hiddenPct = totalAll > 0 ? (hiddenCount / totalAll) * 100 : 0;
 
-  // Interpolate hue: yellow (50°) → red (0°) based on relative count
-  const barColor = (count: number) => {
-    const t = count / maxCount;
-    const hue = Math.round(50 * (1 - t));
-    return `hsl(${hue}, 90%, 55%)`;
-  };
+  const maxLocal = Math.max(...rows.map(r => (totalFiltered > 0 ? (r.count / totalFiltered) * 100 : 0)), 1);
 
-  const renderCustomLabel = (props: object) => {
-    const { x, y, width, index } = props as { x?: number; y?: number; width?: number; index?: number };
-    const xn = Number(x ?? 0);
-    const yn = Number(y ?? 0);
-    const wn = Number(width ?? 0);
-    const idx = Number(index ?? 0);
-    const item = filtered[idx];
-    if (!item) return null;
-    const localPct = totalFiltered > 0 ? (item.count / totalFiltered) * 100 : 0;
-    return (
-      <g>
-        <text x={xn + wn / 2} y={yn - 8} fill="#FFFFFF" textAnchor="middle" fontSize={10} fontWeight="bold">
-          {item.count}w
-        </text>
-        <text x={xn + wn / 2} y={yn - 21} fill="#60A5FA" textAnchor="middle" fontSize={8}>
-          {item.value?.toFixed(1)}%
-        </text>
-        <text x={xn + wn / 2} y={yn - 32} fill="#34D399" textAnchor="middle" fontSize={8}>
-          {localPct.toFixed(1)}%
-        </text>
-      </g>
-    );
-  };
+  // Expose current data to parent for PDF export
+  React.useEffect(() => {
+    if (!onExportData) return;
+    const exportRows: ExportRow[] = rows.map(item => {
+      const localPct = totalFiltered > 0 ? (item.count / totalFiltered) * 100 : 0;
+      return {
+        label: mode === 'usd' ? prettyUsdLabel(item.label) : item.label,
+        count: item.count,
+        pct1: localPct,
+        pct2: item.value,
+      };
+    });
+    onExportData(exportRows, mode, 'Week Frequency');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, mode]);
 
   return (
-    <div className="h-full w-full relative">
-      {/* Legend — top right */}
-      <div className="absolute top-0 right-0 z-10 flex flex-col gap-2 text-[12px] px-3 py-2.5 rounded-lg"
-        style={{ border: '1px solid rgba(255,255,255,0.25)', backgroundColor: '#07111F' }}>
-        <div className="flex items-center gap-2">
-          <span style={{ color: '#34D399' }}>■</span>
-          <span style={{ color: '#34D399' }}>% of visible bars (sums to 100%)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span style={{ color: '#60A5FA' }}>■</span>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between shrink-0 mb-3">
+        <ModeToggle mode={mode} setMode={setMode} />
+        <div className="flex flex-col gap-0.5 text-[10px] text-right leading-tight">
+          <span style={{ color: '#34D399' }}>% of visible (sums to 100%)</span>
           <span style={{ color: '#60A5FA' }}>% of all weeks (global)</span>
         </div>
-        {hiddenPct > 0 && (
-          <div className="pt-1 leading-relaxed" style={{ color: '#7C8BA1', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-            <span style={{ color: '#F87171', fontWeight: 700 }}>{hiddenPct.toFixed(1)}%</span> of weeks returned
-            <br />below $1,000 — not displayed
-          </div>
-        )}
       </div>
 
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          data={filtered}
-          margin={{ top: 50, right: 10, left: 10, bottom: 0 }}
-        >
-          <XAxis dataKey="label" hide />
-          <YAxis hide />
-          <Tooltip
-            cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-            content={({ active, payload }) => {
-              if (!active || !payload?.length) return null;
-              const item = payload[0].payload as HistogramItem;
+      <div className="flex-1 overflow-auto rounded-lg border border-white/5">
+        <table className="w-full text-left border-collapse">
+          <thead className="sticky top-0 bg-[#0F1B2D] z-10">
+            <tr className="border-b border-white/5">
+              <th className={thBase}>Range</th>
+              <th className={`${thBase} text-right`}>Weeks</th>
+              <th className={`${thBase} text-right`} style={{ color: '#34D399' }}>% visible</th>
+              <th className={`${thBase} text-right`} style={{ color: '#60A5FA' }}>% all</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.03]">
+            {rows.map((item, idx) => {
+              const localPct = totalFiltered > 0 ? (item.count / totalFiltered) * 100 : 0;
               return (
-                <div style={{ backgroundColor: '#0F1B2D', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '10px 14px', fontSize: '11px', lineHeight: '1.8' }}>
-                  <p style={{ color: '#fff', fontWeight: 700 }}>Range: {item.label}</p>
-                  <p style={{ color: '#fff' }}>Achieved and closed in this range</p>
-                  <p style={{ color: '#fff', fontWeight: 700 }}>Weeks: {item.count}w</p>
-                </div>
+                <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                  <td className={`${tdBase} font-bold text-white`}>
+                    {mode === 'usd' ? prettyUsdLabel(item.label) : item.label}
+                  </td>
+                  <td className={`${tdBase} text-right font-mono text-white font-bold`}>{item.count}w</td>
+                  <td className={`${tdBase} text-right font-mono font-bold relative`}>
+                    <span
+                      className="absolute inset-y-1 right-1 rounded"
+                      style={{ width: `${(localPct / maxLocal) * 100}%`, backgroundColor: 'rgba(52,211,153,0.10)', maxWidth: '100%' }}
+                    />
+                    <span className="relative" style={{ color: '#34D399' }}>{localPct.toFixed(1)}%</span>
+                  </td>
+                  <td className={`${tdBase} text-right font-mono`} style={{ color: '#60A5FA' }}>
+                    {item.value.toFixed(1)}%
+                  </td>
+                </tr>
               );
-            }}
-          />
-          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-            {filtered.map((item, index) => (
-              <Cell key={index} fill={barColor(item.count)} />
-            ))}
-            <LabelList dataKey="value" content={renderCustomLabel} />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {hiddenPct > 0 && (
+        <div className="shrink-0 pt-2 text-[10px] leading-relaxed text-[#7C8BA1]">
+          <span style={{ color: '#F87171', fontWeight: 700 }}>{hiddenPct.toFixed(1)}%</span> of weeks{' '}
+          {mode === 'usd' ? 'returned below $1,000' : 'had negative returns'} — not displayed
+        </div>
+      )}
     </div>
   );
 }
