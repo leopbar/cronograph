@@ -3,7 +3,7 @@
 import * as React from "react";
 import { AnalysisForm, AnalysisRequest } from "@/components/features/analysis-form";
 import { DailyAnalysisForm, DailyAnalysisRequest } from "@/components/features/daily-analysis-form";
-import { CumulativeTable, DiscreteTable, ExportRow, HistogramItem } from "@/components/features/histogram-charts";
+import { CumulativeTable, ExportRow, HistogramItem } from "@/components/features/histogram-charts";
 import { FadeIn } from "@/components/ui/fade-in";
 import { BarChart3, AlertCircle, Info, FileDown } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -202,7 +202,6 @@ export default function AnalysisPage() {
   };
 
   // Live export data — updated by each table via onExportData callback
-  const discreteExport = React.useRef<{ rows: ExportRow[]; mode: 'usd' | 'pct'; title: string } | null>(null);
   const cumulativeExport = React.useRef<{ rows: ExportRow[]; mode: 'usd' | 'pct'; title: string } | null>(null);
 
   const runWeeklyAnalysis = async (request: AnalysisRequest) => {
@@ -255,9 +254,8 @@ export default function AnalysisPage() {
   };
 
   const exportPDF = async () => {
-    const dExp = discreteExport.current;
     const cExp = cumulativeExport.current;
-    if (!dExp || !cExp) return;
+    if (!cExp) return;
     setExporting(true);
     try {
       const [{ toPng }, { default: jsPDF }] = await Promise.all([
@@ -324,21 +322,7 @@ export default function AnalysisPage() {
         }
       };
 
-      const periodSingular = mode === 'daily' ? 'Day' : 'Week';
       const periodPlural = mode === 'daily' ? 'Days' : 'Weeks';
-
-      // Build discrete section
-      const discreteSection = buildExportSection(
-        `${periodSingular} Frequency`,
-        `${dExp.mode === 'usd' ? 'USD return ranges' : '% return ranges'} — Cronograph Analysis`,
-        dExp.mode === 'usd'
-          ? ['Range', periodPlural, '% visible', '% all']
-          : ['Range (%)', periodPlural, '% visible', '% all'],
-        ['#4F5B70', '#4F5B70', '#34D399', '#60A5FA'],
-        dExp.rows,
-        true,
-        mode,
-      );
 
       const cumulativeSection = buildExportSection(
         'Return Distribution',
@@ -352,8 +336,7 @@ export default function AnalysisPage() {
         mode,
       );
 
-      await captureAndAppend(discreteSection, true);
-      await captureAndAppend(cumulativeSection, false);
+      await captureAndAppend(cumulativeSection, true);
 
       pdf.save('cronograph-analysis.pdf');
     } catch (err) {
@@ -369,10 +352,10 @@ export default function AnalysisPage() {
     return analysisResult.results.filter(r => selectedDays.has(new Date(r.entry_time).getDay()));
   }, [analysisResult, selectedDays, mode]);
 
-  const { discrete: displayDiscrete, cumulative: displayCumulative } = React.useMemo(() => {
-    if (!analysisResult) return { discrete: [], cumulative: [] };
-    if (mode !== 'daily') return { discrete: analysisResult.discrete, cumulative: analysisResult.cumulative };
-    return computeHistograms(displayResults);
+  const displayCumulative = React.useMemo(() => {
+    if (!analysisResult) return [];
+    if (mode !== 'daily') return analysisResult.cumulative;
+    return computeHistograms(displayResults).cumulative;
   }, [analysisResult, displayResults, mode]);
 
   return (
@@ -476,49 +459,24 @@ export default function AnalysisPage() {
             </button>
           </div>
 
-          {/* Tables */}
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-            <div className="rounded-[16px] border border-white/5 bg-[#0F1B2D] shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-[#7C8BA1]" />
-                    {mode === 'daily' ? 'Day Frequency' : 'Week Frequency'}
-                  </h3>
-                  <p className="text-[10px] text-[#4F5B70] mt-1 ml-6">{mode === 'daily' ? 'days per return range' : 'weeks per return range'}</p>
-                </div>
-                <Info className="h-3.5 w-3.5 text-[#4F5B70]" />
-              </div>
-              <div className="p-6 h-[320px]">
-                <DiscreteTable
-                  data={displayDiscrete}
-                  results={displayResults}
-                  periodLabel={mode === 'daily' ? 'Days' : 'Weeks'}
-                  onExportData={(rows, exportMode, title) => {
-                    discreteExport.current = { rows, mode: exportMode, title };
-                  }}
-                />
-              </div>
+          {/* Table */}
+          <div className="rounded-[16px] border border-white/5 bg-[#0F1B2D] shadow-xl overflow-hidden">
+            <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-[#3B82F6]" />
+                Return Distribution
+              </h3>
+              <Info className="h-3.5 w-3.5 text-[#4F5B70]" />
             </div>
-
-            <div className="rounded-[16px] border border-white/5 bg-[#0F1B2D] shadow-xl overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/5 flex items-center justify-between">
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                  <BarChart3 className="h-4 w-4 text-[#3B82F6]" />
-                  Return Distribution
-                </h3>
-                <Info className="h-3.5 w-3.5 text-[#4F5B70]" />
-              </div>
-              <div className="p-6 h-[320px]">
-                <CumulativeTable
-                  data={displayCumulative}
-                  results={displayResults}
-                  periodLabel={mode === 'daily' ? 'days' : 'weeks'}
-                  onExportData={(rows, exportMode, title) => {
-                    cumulativeExport.current = { rows, mode: exportMode, title };
-                  }}
-                />
-              </div>
+            <div className="p-6 h-[480px]">
+              <CumulativeTable
+                data={displayCumulative}
+                results={displayResults}
+                periodLabel={mode === 'daily' ? 'days' : 'weeks'}
+                onExportData={(rows, exportMode, title) => {
+                  cumulativeExport.current = { rows, mode: exportMode, title };
+                }}
+              />
             </div>
           </div>
 

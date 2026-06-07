@@ -67,11 +67,7 @@ interface CumulativeTableProps {
 }
 
 export function CumulativeTable({ data, results, onExportData, periodLabel = 'weeks' }: CumulativeTableProps) {
-  const [mode, setMode] = React.useState<'usd' | 'pct'>('usd');
-
-  const usdFiltered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
-
-  const pctFiltered = React.useMemo(() => {
+  const rows = React.useMemo(() => {
     if (results.length === 0) return [];
     const total = results.length;
     const maxPct = Math.floor(Math.max(...results.map(r => r.return_pct)));
@@ -83,27 +79,25 @@ export function CumulativeTable({ data, results, onExportData, periodLabel = 'we
     return items;
   }, [results]);
 
-  const rows = mode === 'usd' ? usdFiltered : pctFiltered;
   const maxValue = Math.max(...rows.map(r => r.value), 1);
 
   // Expose current data to parent for PDF export
   React.useEffect(() => {
     if (!onExportData) return;
     const exportRows: ExportRow[] = rows.map(item => ({
-      label: mode === 'usd' ? prettyUsdLabel(item.label) : item.label,
+      label: item.label,
       count: item.count,
       pct1: item.value,
     }));
-    onExportData(exportRows, mode, 'Return Distribution');
+    onExportData(exportRows, 'pct', 'Return Distribution');
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, mode]);
+  }, [rows]);
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between shrink-0 mb-3">
-        <ModeToggle mode={mode} setMode={setMode} />
+      <div className="flex items-center justify-end shrink-0 mb-3">
         <span className="text-[10px] text-[#4F5B70] leading-tight text-right">
-          Cumulative — {periodLabel} that achieved<br /><em>at least</em> that {mode === 'usd' ? 'return' : '% return'}
+          Cumulative — {periodLabel} that achieved<br /><em>at least</em> that % return
         </span>
       </div>
 
@@ -119,9 +113,7 @@ export function CumulativeTable({ data, results, onExportData, periodLabel = 'we
           <tbody className="divide-y divide-white/[0.03]">
             {rows.map((item, idx) => (
               <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                <td className={`${tdBase} font-bold text-white`}>
-                  {mode === 'usd' ? prettyUsdLabel(item.label) : item.label}
-                </td>
+                <td className={`${tdBase} font-bold text-white`}>{item.label}</td>
                 <td className={`${tdBase} text-right font-mono text-[#B6C2D1]`}>{item.count}</td>
                 <td className={`${tdBase} text-right font-mono font-bold relative`}>
                   <span
