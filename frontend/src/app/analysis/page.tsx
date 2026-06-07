@@ -26,6 +26,49 @@ interface AnalysisResponse {
 
 type AnalysisMode = 'weekly' | 'daily';
 
+const WEEKDAYS = [
+  { label: 'Mon', value: 1 },
+  { label: 'Tue', value: 2 },
+  { label: 'Wed', value: 3 },
+  { label: 'Thu', value: 4 },
+  { label: 'Fri', value: 5 },
+  { label: 'Sat', value: 6 },
+  { label: 'Sun', value: 0 },
+];
+
+const ALL_DAYS = new Set([0, 1, 2, 3, 4, 5, 6]);
+
+function computeHistograms(results: WeeklyResult[], bucketSize = 100): { discrete: HistogramItem[]; cumulative: HistogramItem[] } {
+  if (results.length === 0) return { discrete: [], cumulative: [] };
+  const total = results.length;
+  const clipped = results.map(r => Math.max(0, r.diff));
+
+  // Discrete
+  const bucketMap = new Map<number, number>();
+  for (const d of clipped) {
+    const b = Math.floor(d / bucketSize) * bucketSize;
+    bucketMap.set(b, (bucketMap.get(b) ?? 0) + 1);
+  }
+  const discrete: HistogramItem[] = Array.from(bucketMap.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([b, count]) => ({
+      label: `${b}-${b + bucketSize}`,
+      value: (count / total) * 100,
+      count,
+    }));
+
+  // Cumulative
+  const maxVal = Math.max(...clipped, 0);
+  const maxBucket = Math.floor(maxVal / bucketSize) * bucketSize;
+  const cumulative: HistogramItem[] = [];
+  for (let b = 0; b <= maxBucket + bucketSize; b += bucketSize) {
+    const count = clipped.filter(d => d >= b).length;
+    cumulative.push({ label: `≥ ${b}`, value: (count / total) * 100, count });
+  }
+
+  return { discrete, cumulative };
+}
+
 // Build an off-screen div with inline-only styles (no Tailwind) ready for html-to-image capture.
 function buildExportSection(
   title: string,
@@ -141,10 +184,21 @@ export default function AnalysisPage() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
 
+  const [selectedDays, setSelectedDays] = React.useState<Set<number>>(new Set(ALL_DAYS));
+
   const handleModeChange = (newMode: AnalysisMode) => {
     setMode(newMode);
     setAnalysisResult(null);
     setErrorMsg(null);
+    setSelectedDays(new Set(ALL_DAYS));
+  };
+
+  const toggleDay = (day: number) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(day)) { next.delete(day); } else { next.add(day); }
+      return next;
+    });
   };
 
   // Live export data — updated by each table via onExportData callback
@@ -190,6 +244,7 @@ export default function AnalysisPage() {
       }
       const analysisData: AnalysisResponse = await analysisRes.json();
       setAnalysisResult(analysisData);
+      setSelectedDays(new Set(ALL_DAYS));
     } catch (error) {
       console.error(error);
       const msg = error instanceof Error ? error.message : "Unknown error";
@@ -308,6 +363,18 @@ export default function AnalysisPage() {
     }
   };
 
+  // Filtered data for Daily mode weekday filter
+  const displayResults = React.useMemo(() => {
+    if (mode !== 'daily' || !analysisResult) return analysisResult?.results ?? [];
+    return analysisResult.results.filter(r => selectedDays.has(new Date(r.entry_time).getDay()));
+  }, [analysisResult, selectedDays, mode]);
+
+  const { discrete: displayDiscrete, cumulative: displayCumulative } = React.useMemo(() => {
+    if (!analysisResult) return { discrete: [], cumulative: [] };
+    if (mode !== 'daily') return { discrete: analysisResult.discrete, cumulative: analysisResult.cumulative };
+    return computeHistograms(displayResults);
+  }, [analysisResult, displayResults, mode]);
+
   return (
     <div className="flex-1 p-8 xl:p-10 max-w-[1700px] mx-auto w-full space-y-8">
       {/* Header */}
@@ -357,6 +424,42 @@ export default function AnalysisPage() {
         </div>
       )}
 
+      {/* Weekday filter — Daily mode only */}
+      {mode === 'daily' && analysisResult && (
+        <div className="flex items-center gap-4 flex-wrap px-1">
+          <span className="text-[11px] font-bold text-[#7C8BA1] uppercase tracking-wider shrink-0">Entry Days</span>
+          <div className="flex gap-1.5 flex-wrap">
+            {WEEKDAYS.map(({ label, value }) => {
+              const selected = selectedDays.has(value);
+              return (
+                <button
+                  key={value}
+                  onClick={() => toggleDay(value)}
+                  className="px-3 py-1.5 rounded-[6px] text-[11px] font-bold transition-colors"
+                  style={selected
+                    ? { backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)' }
+                    : { backgroundColor: 'transparent', color: '#4F5B70', border: '1px solid rgba(255,255,255,0.08)' }
+                  }
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {selectedDays.size < 7 && (
+            <button
+              onClick={() => setSelectedDays(new Set(ALL_DAYS))}
+              className="text-[10px] font-bold text-[#7C8BA1] hover:text-white transition-colors ml-1"
+            >
+              Select all
+            </button>
+          )}
+          <span className="text-[10px] text-[#4F5B70] ml-auto">
+            {displayResults.length} of {analysisResult.results.length} days shown
+          </span>
+        </div>
+      )}
+
       {analysisResult ? (
         <FadeIn className="space-y-8">
           {/* Row header + export button */}
@@ -388,8 +491,8 @@ export default function AnalysisPage() {
               </div>
               <div className="p-6 h-[320px]">
                 <DiscreteTable
-                  data={analysisResult.discrete}
-                  results={analysisResult.results}
+                  data={displayDiscrete}
+                  results={displayResults}
                   periodLabel={mode === 'daily' ? 'Days' : 'Weeks'}
                   onExportData={(rows, exportMode, title) => {
                     discreteExport.current = { rows, mode: exportMode, title };
@@ -408,8 +511,8 @@ export default function AnalysisPage() {
               </div>
               <div className="p-6 h-[320px]">
                 <CumulativeTable
-                  data={analysisResult.cumulative}
-                  results={analysisResult.results}
+                  data={displayCumulative}
+                  results={displayResults}
                   periodLabel={mode === 'daily' ? 'days' : 'weeks'}
                   onExportData={(rows, exportMode, title) => {
                     cumulativeExport.current = { rows, mode: exportMode, title };
@@ -419,7 +522,7 @@ export default function AnalysisPage() {
             </div>
           </div>
 
-          <AnalysisResultsTable results={analysisResult.results} mode={mode} />
+          <AnalysisResultsTable results={displayResults} mode={mode} />
         </FadeIn>
       ) : (
         !loading && (
