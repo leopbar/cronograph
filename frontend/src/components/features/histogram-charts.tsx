@@ -67,16 +67,21 @@ interface CumulativeTableProps {
 }
 
 export function CumulativeTable({ data, results, onExportData, periodLabel = 'weeks' }: CumulativeTableProps) {
-  const rows = React.useMemo(() => {
-    if (results.length === 0) return [];
+  const { rows, negativePct, negativeCount } = React.useMemo(() => {
+    if (results.length === 0) return { rows: [], negativePct: 0, negativeCount: 0 };
     const total = results.length;
     const maxPct = Math.floor(Math.max(...results.map(r => r.return_pct)));
     const items: HistogramItem[] = [];
-    for (let threshold = 1; threshold <= maxPct; threshold++) {
+    for (let threshold = 0; threshold <= maxPct; threshold++) {
       const count = results.filter(r => r.return_pct >= threshold).length;
       items.push({ label: `≥ ${threshold}%`, count, value: (count / total) * 100 });
     }
-    return items;
+    const negCount = results.filter(r => r.return_pct < 0).length;
+    return {
+      rows: items,
+      negativePct: (negCount / total) * 100,
+      negativeCount: negCount,
+    };
   }, [results]);
 
   const maxValue = Math.max(...rows.map(r => r.value), 1);
@@ -127,6 +132,18 @@ export function CumulativeTable({ data, results, onExportData, periodLabel = 'we
           </tbody>
         </table>
       </div>
+
+      {negativeCount > 0 && (
+        <div className="shrink-0 mt-3 px-3 py-2.5 rounded-lg text-[10px] leading-relaxed"
+          style={{ backgroundColor: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}>
+          <span style={{ color: '#F87171', fontWeight: 700 }}>{negativePct.toFixed(1)}% of {periodLabel}</span>
+          <span style={{ color: '#7C8BA1' }}>
+            {' '}({negativeCount} {negativeCount === 1 ? periodLabel.replace(/s$/, '') : periodLabel}) ended with a{' '}
+            <strong style={{ color: '#F87171' }}>negative return (below 0%)</strong> and are not represented in the table above,
+            which only shows {periodLabel} that broke even or gained.
+          </span>
+        </div>
+      )}
     </div>
   );
 }

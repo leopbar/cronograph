@@ -437,6 +437,14 @@ export default function AnalysisPage() {
               Select all
             </button>
           )}
+          {selectedDays.size > 0 && (
+            <button
+              onClick={() => setSelectedDays(new Set())}
+              className="text-[10px] font-bold text-[#7C8BA1] hover:text-rose-400 transition-colors"
+            >
+              Deselect all
+            </button>
+          )}
           <span className="text-[10px] text-[#4F5B70] ml-auto">
             {displayResults.length} of {analysisResult.results.length} days shown
           </span>
