@@ -63,9 +63,10 @@ interface CumulativeTableProps {
   data: HistogramItem[];
   results: Array<{ return_pct: number }>;
   onExportData?: (rows: ExportRow[], mode: 'usd' | 'pct', title: string) => void;
+  periodLabel?: string;
 }
 
-export function CumulativeTable({ data, results, onExportData }: CumulativeTableProps) {
+export function CumulativeTable({ data, results, onExportData, periodLabel = 'weeks' }: CumulativeTableProps) {
   const [mode, setMode] = React.useState<'usd' | 'pct'>('usd');
 
   const usdFiltered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
@@ -102,7 +103,7 @@ export function CumulativeTable({ data, results, onExportData }: CumulativeTable
       <div className="flex items-center justify-between shrink-0 mb-3">
         <ModeToggle mode={mode} setMode={setMode} />
         <span className="text-[10px] text-[#4F5B70] leading-tight text-right">
-          Cumulative — weeks that achieved<br /><em>at least</em> that {mode === 'usd' ? 'return' : '% return'}
+          Cumulative — {periodLabel} that achieved<br /><em>at least</em> that {mode === 'usd' ? 'return' : '% return'}
         </span>
       </div>
 
@@ -111,8 +112,8 @@ export function CumulativeTable({ data, results, onExportData }: CumulativeTable
           <thead className="sticky top-0 bg-[#0F1B2D] z-10">
             <tr className="border-b border-white/5">
               <th className={thBase}>Return ≥</th>
-              <th className={`${thBase} text-right`}>Weeks</th>
-              <th className={`${thBase} text-right`}>% of weeks</th>
+              <th className={`${thBase} text-right`}>{periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}</th>
+              <th className={`${thBase} text-right`}>% of {periodLabel}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.03]">
@@ -146,9 +147,10 @@ interface DiscreteTableProps {
   data: HistogramItem[];
   results: Array<{ return_pct: number }>;
   onExportData?: (rows: ExportRow[], mode: 'usd' | 'pct', title: string) => void;
+  periodLabel?: string;
 }
 
-export function DiscreteTable({ data, results, onExportData }: DiscreteTableProps) {
+export function DiscreteTable({ data, results, onExportData, periodLabel = 'Weeks' }: DiscreteTableProps) {
   const [mode, setMode] = React.useState<'usd' | 'pct'>('usd');
 
   const usdFiltered = data.filter(item => !item.label.startsWith("≥ 0") && !item.label.match(/^0[-–]/));
@@ -210,7 +212,7 @@ export function DiscreteTable({ data, results, onExportData }: DiscreteTableProp
           <thead className="sticky top-0 bg-[#0F1B2D] z-10">
             <tr className="border-b border-white/5">
               <th className={thBase}>Range</th>
-              <th className={`${thBase} text-right`}>Weeks</th>
+              <th className={`${thBase} text-right`}>{periodLabel}</th>
               <th className={`${thBase} text-right`} style={{ color: '#34D399' }}>% visible</th>
               <th className={`${thBase} text-right`} style={{ color: '#60A5FA' }}>% all</th>
             </tr>
@@ -223,7 +225,7 @@ export function DiscreteTable({ data, results, onExportData }: DiscreteTableProp
                   <td className={`${tdBase} font-bold text-white`}>
                     {mode === 'usd' ? prettyUsdLabel(item.label) : item.label}
                   </td>
-                  <td className={`${tdBase} text-right font-mono text-white font-bold`}>{item.count}w</td>
+                  <td className={`${tdBase} text-right font-mono text-white font-bold`}>{item.count}{periodLabel[0].toLowerCase()}</td>
                   <td className={`${tdBase} text-right font-mono font-bold relative`}>
                     <span
                       className="absolute inset-y-1 right-1 rounded"
@@ -243,7 +245,7 @@ export function DiscreteTable({ data, results, onExportData }: DiscreteTableProp
 
       {hiddenPct > 0 && (
         <div className="shrink-0 pt-2 text-[10px] leading-relaxed text-[#7C8BA1]">
-          <span style={{ color: '#F87171', fontWeight: 700 }}>{hiddenPct.toFixed(1)}%</span> of weeks{' '}
+          <span style={{ color: '#F87171', fontWeight: 700 }}>{hiddenPct.toFixed(1)}%</span> of {periodLabel.toLowerCase()}{' '}
           {mode === 'usd' ? 'returned below $1,000' : 'had negative returns'} — not displayed
         </div>
       )}

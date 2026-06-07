@@ -16,14 +16,15 @@ export interface WeeklyResult {
 
 interface Props {
   results: WeeklyResult[];
+  mode?: 'weekly' | 'daily';
 }
 
-export function AnalysisResultsTable({ results }: Props) {
+export function AnalysisResultsTable({ results, mode }: Props) {
   return (
     <div className="rounded-[16px] border border-white/5 bg-[#0F1B2D] shadow-xl overflow-hidden flex flex-col">
       <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between">
         <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-          Trade Journal (Weekly Windows)
+          Trade Journal ({mode === 'daily' ? 'Daily Windows' : 'Weekly Windows'})
         </h3>
         <span className="text-xs font-bold text-[#4F5B70]">{results.length} trades</span>
       </div>

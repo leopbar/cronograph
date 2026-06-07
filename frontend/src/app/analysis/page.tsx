@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { AnalysisForm, AnalysisRequest } from "@/components/features/analysis-form";
+import { DailyAnalysisForm, DailyAnalysisRequest } from "@/components/features/daily-analysis-form";
 import { CumulativeTable, DiscreteTable, ExportRow, HistogramItem } from "@/components/features/histogram-charts";
 import { FadeIn } from "@/components/ui/fade-in";
 import { BarChart3, AlertCircle, Info, FileDown } from "lucide-react";
@@ -23,6 +24,8 @@ interface AnalysisResponse {
   results: WeeklyResult[];
 }
 
+type AnalysisMode = 'weekly' | 'daily';
+
 // Build an off-screen div with inline-only styles (no Tailwind) ready for html-to-image capture.
 function buildExportSection(
   title: string,
@@ -31,6 +34,7 @@ function buildExportSection(
   colColors: string[],
   rows: ExportRow[],
   isDiscrete: boolean,
+  mode: AnalysisMode = 'weekly',
 ): HTMLDivElement {
   const BG       = '#07111F';
   const BG_ROW1  = '#0F1B2D';
@@ -104,7 +108,7 @@ function buildExportSection(
     // Col 1: count
     const tdCount = document.createElement('td');
     tdCount.style.cssText = `padding:9px 14px;color:${MUTED};text-align:right;`;
-    tdCount.textContent = isDiscrete ? `${row.count}w` : String(row.count);
+    tdCount.textContent = isDiscrete ? `${row.count}${mode === 'daily' ? 'd' : 'w'}` : String(row.count);
     tr.appendChild(tdCount);
 
     // Col 2: pct1 (green)
@@ -131,20 +135,51 @@ function buildExportSection(
 }
 
 export default function AnalysisPage() {
+  const [mode, setMode] = React.useState<AnalysisMode>('weekly');
   const [analysisResult, setAnalysisResult] = React.useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [exporting, setExporting] = React.useState(false);
 
+  const handleModeChange = (newMode: AnalysisMode) => {
+    setMode(newMode);
+    setAnalysisResult(null);
+    setErrorMsg(null);
+  };
+
   // Live export data — updated by each table via onExportData callback
   const discreteExport = React.useRef<{ rows: ExportRow[]; mode: 'usd' | 'pct'; title: string } | null>(null);
   const cumulativeExport = React.useRef<{ rows: ExportRow[]; mode: 'usd' | 'pct'; title: string } | null>(null);
 
-  const runAnalysis = async (request: AnalysisRequest) => {
+  const runWeeklyAnalysis = async (request: AnalysisRequest) => {
     setLoading(true);
     setErrorMsg(null);
     try {
       const analysisRes = await apiFetch("/analysis/weekly-window", {
+        method: "POST",
+        body: JSON.stringify(request),
+      });
+      if (!analysisRes.ok) {
+        const detail = await analysisRes.json().catch(() => ({ detail: `HTTP ${analysisRes.status}` }));
+        setErrorMsg(detail.detail || `Analysis failed (HTTP ${analysisRes.status})`);
+        return;
+      }
+      const analysisData: AnalysisResponse = await analysisRes.json();
+      setAnalysisResult(analysisData);
+    } catch (error) {
+      console.error(error);
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      setErrorMsg(`Request failed: ${msg}. Is the backend running?`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runDailyAnalysis = async (request: DailyAnalysisRequest) => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const analysisRes = await apiFetch("/analysis/daily-window", {
         method: "POST",
         body: JSON.stringify(request),
       });
@@ -234,27 +269,32 @@ export default function AnalysisPage() {
         }
       };
 
+      const periodSingular = mode === 'daily' ? 'Day' : 'Week';
+      const periodPlural = mode === 'daily' ? 'Days' : 'Weeks';
+
       // Build discrete section
       const discreteSection = buildExportSection(
-        'Week Frequency',
+        `${periodSingular} Frequency`,
         `${dExp.mode === 'usd' ? 'USD return ranges' : '% return ranges'} — Cronograph Analysis`,
         dExp.mode === 'usd'
-          ? ['Range', 'Weeks', '% visible', '% all']
-          : ['Range (%)', 'Weeks', '% visible', '% all'],
+          ? ['Range', periodPlural, '% visible', '% all']
+          : ['Range (%)', periodPlural, '% visible', '% all'],
         ['#4F5B70', '#4F5B70', '#34D399', '#60A5FA'],
         dExp.rows,
         true,
+        mode,
       );
 
       const cumulativeSection = buildExportSection(
         'Return Distribution',
         `${cExp.mode === 'usd' ? 'Cumulative USD return' : 'Cumulative % return'} — Cronograph Analysis`,
         cExp.mode === 'usd'
-          ? ['Return ≥', 'Weeks', '% of weeks']
-          : ['Return ≥ (%)', 'Weeks', '% of weeks'],
+          ? ['Return ≥', periodPlural, `% of ${periodPlural.toLowerCase()}`]
+          : ['Return ≥ (%)', periodPlural, `% of ${periodPlural.toLowerCase()}`],
         ['#4F5B70', '#4F5B70', '#34D399'],
         cExp.rows,
         false,
+        mode,
       );
 
       await captureAndAppend(discreteSection, true);
@@ -278,9 +318,33 @@ export default function AnalysisPage() {
             Statistical analysis of time windows and historical performance.
           </p>
         </div>
+        <div className="flex gap-1 px-2 py-1.5 rounded-lg w-fit mt-1"
+          style={{ border: '1px solid rgba(255,255,255,0.25)', backgroundColor: '#07111F' }}>
+          <button
+            onClick={() => handleModeChange('weekly')}
+            className="px-3 py-1 rounded text-[11px] font-bold transition-colors"
+            style={mode === 'weekly'
+              ? { backgroundColor: 'rgba(251,191,36,0.15)', color: '#FBBF24' }
+              : { color: '#7C8BA1' }}
+          >
+            Weekly
+          </button>
+          <button
+            onClick={() => handleModeChange('daily')}
+            className="px-3 py-1 rounded text-[11px] font-bold transition-colors"
+            style={mode === 'daily'
+              ? { backgroundColor: 'rgba(96,165,250,0.15)', color: '#60A5FA' }
+              : { color: '#7C8BA1' }}
+          >
+            Daily
+          </button>
+        </div>
       </div>
 
-      <AnalysisForm onRun={runAnalysis} loading={loading} />
+      {mode === 'weekly'
+        ? <AnalysisForm onRun={runWeeklyAnalysis} loading={loading} />
+        : <DailyAnalysisForm onRun={runDailyAnalysis} loading={loading} />
+      }
 
       {errorMsg && (
         <div className="flex items-start gap-3 p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl text-sm text-rose-200">
@@ -316,9 +380,9 @@ export default function AnalysisPage() {
                 <div>
                   <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
                     <BarChart3 className="h-4 w-4 text-[#7C8BA1]" />
-                    Week Frequency
+                    {mode === 'daily' ? 'Day Frequency' : 'Week Frequency'}
                   </h3>
-                  <p className="text-[10px] text-[#4F5B70] mt-1 ml-6">weeks per return range</p>
+                  <p className="text-[10px] text-[#4F5B70] mt-1 ml-6">{mode === 'daily' ? 'days per return range' : 'weeks per return range'}</p>
                 </div>
                 <Info className="h-3.5 w-3.5 text-[#4F5B70]" />
               </div>
@@ -326,8 +390,9 @@ export default function AnalysisPage() {
                 <DiscreteTable
                   data={analysisResult.discrete}
                   results={analysisResult.results}
-                  onExportData={(rows, mode, title) => {
-                    discreteExport.current = { rows, mode, title };
+                  periodLabel={mode === 'daily' ? 'Days' : 'Weeks'}
+                  onExportData={(rows, exportMode, title) => {
+                    discreteExport.current = { rows, mode: exportMode, title };
                   }}
                 />
               </div>
@@ -345,15 +410,16 @@ export default function AnalysisPage() {
                 <CumulativeTable
                   data={analysisResult.cumulative}
                   results={analysisResult.results}
-                  onExportData={(rows, mode, title) => {
-                    cumulativeExport.current = { rows, mode, title };
+                  periodLabel={mode === 'daily' ? 'days' : 'weeks'}
+                  onExportData={(rows, exportMode, title) => {
+                    cumulativeExport.current = { rows, mode: exportMode, title };
                   }}
                 />
               </div>
             </div>
           </div>
 
-          <AnalysisResultsTable results={analysisResult.results} />
+          <AnalysisResultsTable results={analysisResult.results} mode={mode} />
         </FadeIn>
       ) : (
         !loading && (

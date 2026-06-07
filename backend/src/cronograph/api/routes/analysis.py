@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from cronograph.core.db import get_db
 from cronograph.models.candle import Candle
 from cronograph.services.analysis.weekly_window import WeeklyWindowAnalysis
+from cronograph.services.analysis.daily_window import DailyWindowAnalysis
 from cronograph.services.analysis.histogram import HistogramService, AnalysisResponse
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
@@ -23,12 +24,51 @@ class WeeklyAnalysisRequest(BaseModel):
     exit_time: str
     exit_price_type: str = "open"
 
+class DailyAnalysisRequest(BaseModel):
+    symbol: str
+    interval: str
+    range_from: str
+    range_to: str
+    entry_time: str
+    entry_price_type: str = "open"
+
 class CandleResponse(BaseModel):
     time: int
     open: float
     high: float
     low: float
     close: float
+
+@router.post("/daily-window")
+async def run_daily_analysis(
+    request: DailyAnalysisRequest,
+    db: AsyncSession = Depends(get_db)
+) -> AnalysisResponse:
+    try:
+        entry_t = time.fromisoformat(request.entry_time)
+        range_start = datetime.strptime(request.range_from, "%Y-%m-%d")
+        range_end = datetime.strptime(request.range_to, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date/time format. Use YYYY-MM-DD and HH:MM")
+
+    analysis = DailyWindowAnalysis(db)
+    results = await analysis.run(
+        symbol=request.symbol,
+        interval=request.interval,
+        range_from=range_start,
+        range_to=range_end,
+        entry_time=entry_t,
+        entry_price_type=request.entry_price_type,
+    )
+
+    if not results:
+        raise HTTPException(
+            status_code=404,
+            detail="No data found for the selected window and period. Please check your data extraction."
+        )
+
+    response = HistogramService.generate(results, bucket_size=100, periods_per_year=365)
+    return response
 
 @router.get("/candles")
 async def get_candles(

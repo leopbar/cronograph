@@ -31,7 +31,7 @@ class AnalysisResponse(BaseModel):
 
 class HistogramService:
     @staticmethod
-    def generate(results: List[WeeklyResult], bucket_size: int = 1000) -> AnalysisResponse:
+    def generate(results: List[WeeklyResult], bucket_size: int = 1000, periods_per_year: int = 52) -> AnalysisResponse:
         if not results:
             return AnalysisResponse(
                 total_weeks=0, mean=0, median=0, p90=0, max=0,
@@ -62,7 +62,7 @@ class HistogramService:
         # Risk-free rate assumed 0
         sharpe_mean: float = cast(float, mean_return) if mean_return is not None else 0.0
         sharpe_std: float = cast(float, std_return) if std_return is not None else 0.0
-        sharpe = (sharpe_mean / sharpe_std * (52 ** 0.5)) if sharpe_std > 0 else 0.0
+        sharpe = (sharpe_mean / sharpe_std * (periods_per_year ** 0.5)) if sharpe_std > 0 else 0.0
         
         # Cumulative Return and Max Drawdown
         # We calculate the equity curve: (1 + r1) * (1 + r2) * ...
@@ -84,7 +84,7 @@ class HistogramService:
         
         # Calmar Ratio: Annualized Return / Max Drawdown
         # Annualized Return = (Total Return + 1)^(52/total_weeks) - 1
-        num_years = total_weeks / 52.0
+        num_years = total_weeks / float(periods_per_year)
         annualized_return = ((equity_curve[-1]) ** (1.0 / num_years) - 1.0) if num_years > 0 else 0.0
         calmar = (annualized_return / abs(max_dd)) if max_dd < 0 else 0.0
 
