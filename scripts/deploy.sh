@@ -17,6 +17,13 @@ COMPOSE="docker compose -f $COMPOSE_FILE --env-file $ENV_FILE"
 
 log "====== Deploy started ======"
 
+# --- Ensure deploy dir has a valid git repo ---
+if [ ! -d "$DEPLOY_DIR/.git" ]; then
+  log "No .git found — cloning fresh..."
+  rm -rf "$DEPLOY_DIR"
+  git clone https://github.com/leopbar/cronograph.git "$DEPLOY_DIR"
+fi
+
 cd "$DEPLOY_DIR"
 
 # --- Pull latest code ---
