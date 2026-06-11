@@ -31,6 +31,13 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
   const latestElapsed = React.useRef(0);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   // Timer for elapsed time
   React.useEffect(() => {
     if (preview) return;
@@ -106,13 +113,6 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
   }, [jobId, API_URL, onComplete, preview]);
 
   const progressPercent = data ? Math.round(data.progress * 100) : 0;
-  
-  const formatTime = (seconds: number) => {
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
 
   // Speed calculation: records per minute
   const speed = elapsedSeconds > 0 
