@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -58,13 +58,13 @@ export function AnalysisResultsTable({ results, mode }: Props) {
                   >
                     <td className="px-5 py-3.5 text-[15px] font-medium text-[#4F5B70]">{idx + 1}</td>
                     <td className="px-5 py-3.5 text-[15px] font-bold text-white">
-                      {format(new Date(result.entry_time), "dd/MM/yyyy HH:mm")}
+                      {formatInTimeZone(new Date(result.entry_time), "UTC", "dd/MM/yyyy HH:mm")}
                     </td>
                     <td className="px-5 py-3.5 text-[15px] font-mono text-[#B6C2D1]">
                       ${result.entry_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="px-5 py-3.5 text-[15px] font-bold text-white">
-                      {format(new Date(result.exit_time), "dd/MM/yyyy HH:mm")}
+                      {formatInTimeZone(new Date(result.exit_time), "UTC", "dd/MM/yyyy HH:mm")}
                     </td>
                     <td className="px-5 py-3.5 text-[15px] font-mono text-[#B6C2D1]">
                       ${result.exit_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

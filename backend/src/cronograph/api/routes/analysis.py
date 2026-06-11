@@ -47,7 +47,7 @@ async def run_daily_analysis(
     try:
         entry_t = time.fromisoformat(request.entry_time)
         range_start = datetime.strptime(request.range_from, "%Y-%m-%d")
-        range_end = datetime.strptime(request.range_to, "%Y-%m-%d")
+        range_end = datetime.strptime(request.range_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date/time format. Use YYYY-MM-DD and HH:MM")
 
@@ -117,7 +117,7 @@ async def run_weekly_analysis(
         entry_t = time.fromisoformat(request.entry_time)
         exit_t = time.fromisoformat(request.exit_time)
         range_start = datetime.strptime(request.range_from, "%Y-%m-%d")
-        range_end = datetime.strptime(request.range_to, "%Y-%m-%d")
+        range_end = datetime.strptime(request.range_to, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date/time format. Use YYYY-MM-DD and HH:MM")
 
