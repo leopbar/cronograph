@@ -7,10 +7,6 @@ import {
   CheckCircle2,
   History,
   Database,
-  Calendar,
-  Settings,
-  FileText,
-  HelpCircle,
   Clock,
   ChevronLeft,
   ChevronRight,
@@ -25,11 +21,6 @@ const MAIN_NAV = [
   { name: "Extract Data", href: "/", icon: CheckCircle2 },
   { name: "Analysis", href: "/analysis", icon: Database },
   { name: "Extraction History", href: "/previous", icon: History },
-  { name: "Saved Analyses", href: "/saved", icon: FileText, disabled: true },
-  { name: "Schedules", href: "/schedules", icon: Calendar, disabled: true },
-  { name: "Settings", href: "/settings", icon: Settings, disabled: true },
-  { name: "System Logs", href: "/logs", icon: Clock, disabled: true },
-  { name: "Help", href: "/help", icon: HelpCircle, disabled: true },
 ];
 
 const ADMIN_NAV = [

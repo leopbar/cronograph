@@ -3,9 +3,9 @@
 import * as React from "react";
 import { AnalysisForm, AnalysisRequest } from "@/components/features/analysis-form";
 import { DailyAnalysisForm, DailyAnalysisRequest } from "@/components/features/daily-analysis-form";
-import { CumulativeTable, ExportRow, HistogramItem } from "@/components/features/histogram-charts";
+import { CumulativeTable, HistogramItem } from "@/components/features/histogram-charts";
 import { FadeIn } from "@/components/ui/fade-in";
-import { BarChart3, AlertCircle, Info, FileDown } from "lucide-react";
+import { BarChart3, AlertCircle, Info } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { AnalysisResultsTable, WeeklyResult } from "@/components/features/analysis-results-table";
 
@@ -70,119 +70,12 @@ function computeHistograms(results: WeeklyResult[], bucketSize = 100): { discret
 }
 
 // Build an off-screen div with inline-only styles (no Tailwind) ready for html-to-image capture.
-function buildExportSection(
-  title: string,
-  subtitle: string,
-  headers: string[],
-  colColors: string[],
-  rows: ExportRow[],
-  isDiscrete: boolean,
-  mode: AnalysisMode = 'weekly',
-): HTMLDivElement {
-  const BG       = '#07111F';
-  const BG_ROW1  = '#0F1B2D';
-  const BG_ROW2  = '#0a1828';
-  const BORDER   = '#1a2940';
-  const TH_COLOR = '#4F5B70';
-  const WHITE    = '#FFFFFF';
-  const GREEN    = '#34D399';
-  const BLUE     = '#60A5FA';
-  const MUTED    = '#B6C2D1';
-
-  const section = document.createElement('div');
-  section.style.cssText = `background:${BG};padding:24px 28px;font-family:ui-monospace,monospace;`;
-
-  // Title block
-  const titleEl = document.createElement('div');
-  titleEl.style.cssText = `margin-bottom:16px;`;
-
-  const h = document.createElement('div');
-  h.style.cssText = `color:${WHITE};font-size:15px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:4px;`;
-  h.textContent = title;
-
-  const sub = document.createElement('div');
-  sub.style.cssText = `color:${TH_COLOR};font-size:10px;`;
-  sub.textContent = subtitle;
-
-  titleEl.appendChild(h);
-  titleEl.appendChild(sub);
-  section.appendChild(titleEl);
-
-  // Table wrapper
-  const tableWrap = document.createElement('div');
-  tableWrap.style.cssText = `border:1px solid ${BORDER};border-radius:8px;overflow:hidden;`;
-
-  const table = document.createElement('table');
-  table.style.cssText = `width:100%;border-collapse:collapse;font-size:12px;`;
-
-  // Header
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
-  headerRow.style.cssText = `background:${BG_ROW1};`;
-  headers.forEach((hdr, i) => {
-    const th = document.createElement('th');
-    const isRight = i > 0;
-    th.style.cssText = `
-      padding:10px 14px;
-      color:${colColors[i] ?? TH_COLOR};
-      font-size:10px;font-weight:700;
-      text-transform:uppercase;letter-spacing:0.06em;
-      text-align:${isRight ? 'right' : 'left'};
-      border-bottom:1px solid ${BORDER};
-    `;
-    th.textContent = hdr;
-    headerRow.appendChild(th);
-  });
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
-
-  // Body
-  const tbody = document.createElement('tbody');
-  rows.forEach((row, rowIdx) => {
-    const tr = document.createElement('tr');
-    tr.style.cssText = `background:${rowIdx % 2 === 0 ? BG_ROW1 : BG_ROW2};`;
-
-    // Col 0: label
-    const tdLabel = document.createElement('td');
-    tdLabel.style.cssText = `padding:9px 14px;color:${WHITE};font-weight:700;`;
-    tdLabel.textContent = row.label;
-    tr.appendChild(tdLabel);
-
-    // Col 1: count
-    const tdCount = document.createElement('td');
-    tdCount.style.cssText = `padding:9px 14px;color:${MUTED};text-align:right;`;
-    tdCount.textContent = isDiscrete ? `${row.count}${mode === 'daily' ? 'd' : 'w'}` : String(row.count);
-    tr.appendChild(tdCount);
-
-    // Col 2: pct1 (green)
-    const tdPct1 = document.createElement('td');
-    tdPct1.style.cssText = `padding:9px 14px;color:${GREEN};font-weight:700;text-align:right;`;
-    tdPct1.textContent = `${row.pct1.toFixed(1)}%`;
-    tr.appendChild(tdPct1);
-
-    // Col 3 (discrete only): pct2 (blue)
-    if (isDiscrete && row.pct2 !== undefined) {
-      const tdPct2 = document.createElement('td');
-      tdPct2.style.cssText = `padding:9px 14px;color:${BLUE};text-align:right;`;
-      tdPct2.textContent = `${row.pct2.toFixed(1)}%`;
-      tr.appendChild(tdPct2);
-    }
-
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  tableWrap.appendChild(table);
-  section.appendChild(tableWrap);
-
-  return section;
-}
 
 export default function AnalysisPage() {
   const [mode, setMode] = React.useState<AnalysisMode>('weekly');
   const [analysisResult, setAnalysisResult] = React.useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [exporting, setExporting] = React.useState(false);
 
   const [selectedDays, setSelectedDays] = React.useState<Set<number>>(new Set(ALL_DAYS));
 
@@ -201,8 +94,6 @@ export default function AnalysisPage() {
     });
   };
 
-  // Live export data — updated by each table via onExportData callback
-  const cumulativeExport = React.useRef<{ rows: ExportRow[]; mode: 'usd' | 'pct'; title: string } | null>(null);
 
   const runWeeklyAnalysis = async (request: AnalysisRequest) => {
     setLoading(true);
@@ -253,98 +144,6 @@ export default function AnalysisPage() {
     }
   };
 
-  const exportPDF = async () => {
-    const cExp = cumulativeExport.current;
-    if (!cExp) return;
-    setExporting(true);
-    try {
-      const [{ toPng }, { default: jsPDF }] = await Promise.all([
-        import("html-to-image"),
-        import("jspdf"),
-      ]);
-
-      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const margin = 10;
-      const usableW = pageW - margin * 2;
-
-      // Capture one section (fully inline-styled div) and paginate it
-      const captureAndAppend = async (
-        section: HTMLDivElement,
-        isFirst: boolean,
-      ) => {
-        section.style.position = 'fixed';
-        section.style.top = '0';
-        section.style.left = '-9999px';
-        section.style.width = '860px';
-        document.body.appendChild(section);
-
-        const dataUrl = await toPng(section, { pixelRatio: 2, backgroundColor: '#07111F' });
-        document.body.removeChild(section);
-
-        // Convert to canvas for slicing
-        const img = new Image();
-        await new Promise<void>(res => { img.onload = () => res(); img.src = dataUrl; });
-        const fullCanvas = document.createElement('canvas');
-        fullCanvas.width = img.naturalWidth;
-        fullCanvas.height = img.naturalHeight;
-        fullCanvas.getContext('2d')!.drawImage(img, 0, 0);
-
-        const pxPerMm = fullCanvas.width / usableW;
-        const pageHeightPx = Math.floor((pageH - margin * 2) * pxPerMm);
-
-        let srcY = 0;
-        let firstSlice = true;
-
-        while (srcY < fullCanvas.height) {
-          if (!firstSlice || !isFirst) {
-            pdf.addPage();
-            pdf.setFillColor(7, 17, 31);
-            pdf.rect(0, 0, pageW, pageH, 'F');
-          } else {
-            pdf.setFillColor(7, 17, 31);
-            pdf.rect(0, 0, pageW, pageH, 'F');
-          }
-
-          const slicePx = Math.min(pageHeightPx, fullCanvas.height - srcY);
-          const sliceMm = slicePx / pxPerMm;
-
-          const slice = document.createElement('canvas');
-          slice.width = fullCanvas.width;
-          slice.height = slicePx;
-          slice.getContext('2d')!.drawImage(fullCanvas, 0, srcY, fullCanvas.width, slicePx, 0, 0, fullCanvas.width, slicePx);
-
-          pdf.addImage(slice.toDataURL('image/png'), 'PNG', margin, margin, usableW, sliceMm);
-
-          srcY += slicePx;
-          firstSlice = false;
-        }
-      };
-
-      const periodPlural = mode === 'daily' ? 'Days' : 'Weeks';
-
-      const cumulativeSection = buildExportSection(
-        'Return Distribution',
-        `${cExp.mode === 'usd' ? 'Cumulative USD return' : 'Cumulative % return'} — Cronograph Analysis`,
-        cExp.mode === 'usd'
-          ? ['Return ≥', periodPlural, `% of ${periodPlural.toLowerCase()}`]
-          : ['Return ≥ (%)', periodPlural, `% of ${periodPlural.toLowerCase()}`],
-        ['#4F5B70', '#4F5B70', '#34D399'],
-        cExp.rows,
-        false,
-        mode,
-      );
-
-      await captureAndAppend(cumulativeSection, true);
-
-      pdf.save('cronograph-analysis.pdf');
-    } catch (err) {
-      console.error('PDF export failed:', err);
-    } finally {
-      setExporting(false);
-    }
-  };
 
   // Filtered data for Daily mode weekday filter
   const displayResults = React.useMemo(() => {
@@ -453,18 +252,9 @@ export default function AnalysisPage() {
 
       {analysisResult ? (
         <FadeIn className="space-y-8">
-          {/* Row header + export button */}
+          {/* Row header */}
           <div className="flex items-center justify-between">
             <p className="text-xs font-bold text-[#4F5B70] uppercase tracking-wider">Distribution Tables</p>
-            <button
-              onClick={exportPDF}
-              disabled={exporting}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
-              style={{ backgroundColor: 'rgba(59,130,246,0.12)', color: '#60A5FA', border: '1px solid rgba(59,130,246,0.25)' }}
-            >
-              <FileDown className="h-3.5 w-3.5" />
-              {exporting ? 'Generating…' : 'Export PDF'}
-            </button>
           </div>
 
           {/* Table */}
@@ -481,9 +271,6 @@ export default function AnalysisPage() {
                 data={displayCumulative}
                 results={displayResults}
                 periodLabel={mode === 'daily' ? 'days' : 'weeks'}
-                onExportData={(rows, exportMode, title) => {
-                  cumulativeExport.current = { rows, mode: exportMode, title };
-                }}
               />
             </div>
           </div>
