@@ -62,7 +62,7 @@ export function Sidebar() {
           return (
             <Link
               key={item.name}
-              href={item.disabled ? "#" : item.href}
+              href={item.href}
               title={collapsed ? item.name : undefined}
               className={cn(
                 "group flex items-center py-3.5 text-sm font-semibold rounded-xl transition-all duration-200",
@@ -70,7 +70,6 @@ export function Sidebar() {
                 isActive
                   ? "bg-[#22C55E]/10 text-[#22C55E] shadow-[inset_0_0_12px_rgba(34,197,94,0.05)]"
                   : "text-[#B6C2D1] hover:bg-white/5 hover:text-white",
-                item.disabled && "opacity-40 cursor-not-allowed hover:bg-transparent hover:text-[#B6C2D1]"
               )}
             >
               <item.icon

@@ -7,7 +7,7 @@ import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  onStart: (jobId: string) => void;
+  onStart: (jobId: string, rangeFrom: string, rangeTo: string) => void;
   disabled?: boolean;
 }
 
@@ -28,7 +28,7 @@ export function ExtractionForm({ onStart, disabled }: Props) {
         range_from: new Date(`${rangeFrom}T00:00:00`).toISOString(),
         range_to: new Date(`${rangeTo}T23:59:59`).toISOString(),
       });
-      onStart(job_id);
+      onStart(job_id, rangeFrom, rangeTo);
     } catch (error) {
       console.error(error);
     } finally {

@@ -12,15 +12,23 @@ interface ProgressData {
   error?: string;
 }
 
+interface CompletionStats {
+  recordsExtracted: number;
+  duration: string;
+  speed: number;
+}
+
 interface Props {
   jobId: string;
-  onComplete: () => void;
+  onComplete: (stats: CompletionStats) => void;
   preview?: boolean;
 }
 
 export function ExtractionProgress({ jobId, onComplete, preview = false }: Props) {
   const [data, setData] = React.useState<ProgressData | null>(null);
   const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  const latestCandles = React.useRef(0);
+  const latestElapsed = React.useRef(0);
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
   // Timer for elapsed time
@@ -29,7 +37,10 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
     let interval: NodeJS.Timeout;
     if (data?.status !== "done" && data?.status !== "failed") {
       interval = setInterval(() => {
-        setElapsedSeconds(s => s + 1);
+        setElapsedSeconds(s => {
+          latestElapsed.current = s + 1;
+          return s + 1;
+        });
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -43,6 +54,7 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
       try {
         if (!event.data || event.data === "undefined") return;
         const parsed = JSON.parse((event as MessageEvent).data);
+        latestCandles.current = parsed.candles_done;
         setData(prev => ({
           ...prev,
           progress: parsed.progress,
@@ -59,7 +71,14 @@ export function ExtractionProgress({ jobId, onComplete, preview = false }: Props
       eventSource.close();
       // Delay completion state slightly so user sees 100%
       setTimeout(() => {
-        onComplete();
+        const finalElapsed = latestElapsed.current;
+        const finalCandles = latestCandles.current;
+        const finalSpeed = finalElapsed > 0 ? Math.round(finalCandles / (finalElapsed / 60)) : 0;
+        onComplete({
+          recordsExtracted: finalCandles,
+          duration: formatTime(finalElapsed),
+          speed: finalSpeed,
+        });
       }, 1000);
     });
 

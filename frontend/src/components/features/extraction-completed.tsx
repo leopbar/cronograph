@@ -11,11 +11,11 @@ interface Props {
 }
 
 export function ExtractionCompleted({
-  recordsExtracted = 125430,
-  startDate = "06/01/2024",
-  endDate = "06/08/2024",
-  duration = "00:04:18",
-  speed = 12350
+  recordsExtracted = 0,
+  startDate = "—",
+  endDate = "—",
+  duration = "00:00:00",
+  speed = 0
 }: Props) {
   return (
     <div className="rounded-[16px] border border-[#22C55E]/20 bg-[#0F1B2D] shadow-2xl overflow-hidden relative">
