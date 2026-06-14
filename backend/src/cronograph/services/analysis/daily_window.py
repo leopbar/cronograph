@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from cronograph.models.candle import Candle
 
-EXIT_TIME = time(7, 0)
+EXIT_TIME = time(8, 0)
 
 
 class DailyWindowAnalysis:

@@ -160,7 +160,7 @@ export function DailyAnalysisForm({ onRun, loading }: DailyAnalysisFormProps) {
         <div className="space-y-1.5">
           <label className="text-[11px] font-bold text-[#7C8BA1] uppercase tracking-wider ml-1">Exit Time</label>
           <div className={cn(inputClasses, "items-center flex opacity-50 cursor-not-allowed")}>
-            <span>07:00</span>
+            <span>08:00</span>
             <span className="ml-2 text-[10px] text-[#7C8BA1]">(fixed — next day)</span>
           </div>
         </div>
