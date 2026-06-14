@@ -70,11 +70,12 @@ export function CumulativeTable({ data, results, onExportData, periodLabel = 'we
   const { rows, negativePct, negativeCount } = React.useMemo(() => {
     if (results.length === 0) return { rows: [], negativePct: 0, negativeCount: 0 };
     const total = results.length;
-    const maxPct = Math.floor(Math.max(...results.map(r => r.return_pct)));
+    const maxPct = Math.ceil(Math.max(...results.map(r => r.return_pct)) * 2) / 2;
     const items: HistogramItem[] = [];
-    for (let threshold = 0; threshold <= maxPct; threshold++) {
-      const count = results.filter(r => r.return_pct >= threshold).length;
-      items.push({ label: `≥ ${threshold}%`, count, value: (count / total) * 100 });
+    for (let threshold = 0; threshold <= maxPct; threshold += 0.5) {
+      const t = Math.round(threshold * 10) / 10;
+      const count = results.filter(r => r.return_pct >= t).length;
+      items.push({ label: `≥ ${t % 1 === 0 ? t.toFixed(0) : t.toFixed(1)}%`, count, value: (count / total) * 100 });
     }
     const negCount = results.filter(r => r.return_pct < 0).length;
     return {
@@ -168,17 +169,22 @@ export function DiscreteTable({ data, results, onExportData, periodLabel = 'Week
     const buckets = new Map<number, number>();
     for (const r of results) {
       if (r.return_pct < 0) continue;
-      const bucket = Math.floor(r.return_pct);
-      buckets.set(bucket, (buckets.get(bucket) || 0) + 1);
+      const bucketKey = Math.floor(r.return_pct / 0.5);
+      buckets.set(bucketKey, (buckets.get(bucketKey) || 0) + 1);
     }
     const total = results.length;
     return Array.from(buckets.entries())
       .sort((a, b) => a[0] - b[0])
-      .map(([bucket, count]) => ({
-        label: `${bucket}%-${bucket + 1}%`,
-        count,
-        value: (count / total) * 100,
-      }));
+      .map(([bucketKey, count]) => {
+        const start = bucketKey * 0.5;
+        const end = start + 0.5;
+        const fmt = (n: number) => n % 1 === 0 ? `${n.toFixed(0)}` : `${n.toFixed(1)}`;
+        return {
+          label: `${fmt(start)}%-${fmt(end)}%`,
+          count,
+          value: (count / total) * 100,
+        };
+      });
   }, [results]);
 
   const rows = mode === 'usd' ? usdFiltered : pctFiltered;
