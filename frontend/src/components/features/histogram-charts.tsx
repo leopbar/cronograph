@@ -67,22 +67,29 @@ interface CumulativeTableProps {
 }
 
 export function CumulativeTable({ data, results, onExportData, periodLabel = 'weeks' }: CumulativeTableProps) {
-  const { rows, negativePct, negativeCount } = React.useMemo(() => {
-    if (results.length === 0) return { rows: [], negativePct: 0, negativeCount: 0 };
+  const rows = React.useMemo(() => {
+    if (results.length === 0) return [];
     const total = results.length;
+    const minPct = Math.floor(Math.min(...results.map(r => r.return_pct)) * 2) / 2;
     const maxPct = Math.ceil(Math.max(...results.map(r => r.return_pct)) * 2) / 2;
-    const items: HistogramItem[] = [];
-    for (let threshold = 0; threshold <= maxPct; threshold += 0.5) {
+    const fmt = (n: number) => `${n % 1 === 0 ? n.toFixed(0) : n.toFixed(1)}%`;
+    const negItems: HistogramItem[] = [];
+    const posItems: HistogramItem[] = [];
+    for (let threshold = minPct; threshold <= maxPct; threshold += 0.5) {
       const t = Math.round(threshold * 10) / 10;
-      const count = results.filter(r => r.return_pct >= t).length;
-      items.push({ label: `≥ ${t % 1 === 0 ? t.toFixed(0) : t.toFixed(1)}%`, count, value: (count / total) * 100 });
+      if (t < 0) {
+        const count = results.filter(r => r.return_pct <= t).length;
+        negItems.push({ label: `≤ ${fmt(t)}`, count, value: (count / total) * 100 });
+      } else {
+        const count = results.filter(r => r.return_pct >= t).length;
+        posItems.push({ label: `≥ ${fmt(t)}`, count, value: (count / total) * 100 });
+      }
     }
-    const negCount = results.filter(r => r.return_pct < 0).length;
-    return {
-      rows: items,
-      negativePct: (negCount / total) * 100,
-      negativeCount: negCount,
-    };
+    if (negItems.length > 0) {
+      const negCount = results.filter(r => r.return_pct < 0).length;
+      negItems.push({ label: '< 0%', count: negCount, value: (negCount / total) * 100 });
+    }
+    return [...negItems, ...posItems];
   }, [results]);
 
   const maxValue = Math.max(...rows.map(r => r.value), 1);
@@ -111,40 +118,42 @@ export function CumulativeTable({ data, results, onExportData, periodLabel = 'we
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-[#0F1B2D] z-10">
             <tr className="border-b border-white/5">
-              <th className={thBase}>Return ≥</th>
+              <th className={thBase}>Return</th>
               <th className={`${thBase} text-right`}>{periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)}</th>
               <th className={`${thBase} text-right`}>% of {periodLabel}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.03]">
-            {rows.map((item, idx) => (
-              <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                <td className={`${tdBase} font-bold text-white`}>{item.label}</td>
-                <td className={`${tdBase} text-right font-mono text-[#B6C2D1]`}>{item.count}</td>
-                <td className={`${tdBase} text-right font-mono font-bold relative`}>
-                  <span
-                    className="absolute inset-y-1 right-1 rounded"
-                    style={{ width: `${(item.value / maxValue) * 100}%`, backgroundColor: 'rgba(52,211,153,0.10)', maxWidth: '100%' }}
-                  />
-                  <span className="relative" style={{ color: '#34D399' }}>{item.value.toFixed(1)}%</span>
-                </td>
-              </tr>
-            ))}
+            {rows.map((item, idx) => {
+              const isNegative = item.label.startsWith('≤') || item.label === '< 0%';
+              const isLastNegative = item.label === '< 0%';
+              const barColor = isNegative ? 'rgba(248,113,113,0.10)' : 'rgba(52,211,153,0.10)';
+              const textColor = isNegative ? '#F87171' : '#34D399';
+              return (
+                <React.Fragment key={idx}>
+                  <tr className="hover:bg-white/[0.02] transition-colors">
+                    <td className={`${tdBase} font-bold text-white`}>{item.label}</td>
+                    <td className={`${tdBase} text-right font-mono text-[#B6C2D1]`}>{item.count}</td>
+                    <td className={`${tdBase} text-right font-mono font-bold relative`}>
+                      <span
+                        className="absolute inset-y-1 right-1 rounded"
+                        style={{ width: `${(item.value / maxValue) * 100}%`, backgroundColor: barColor, maxWidth: '100%' }}
+                      />
+                      <span className="relative" style={{ color: textColor }}>{item.value.toFixed(1)}%</span>
+                    </td>
+                  </tr>
+                  {isLastNegative && (
+                    <tr>
+                      <td colSpan={3} style={{ borderTop: '1px solid rgba(255,255,255,0.15)', padding: 0 }} />
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {negativeCount > 0 && (
-        <div className="shrink-0 mt-3 px-3 py-2.5 rounded-lg text-[10px] leading-relaxed"
-          style={{ backgroundColor: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}>
-          <span style={{ color: '#F87171', fontWeight: 700 }}>{negativePct.toFixed(1)}% of {periodLabel}</span>
-          <span style={{ color: '#7C8BA1' }}>
-            {' '}({negativeCount} {negativeCount === 1 ? periodLabel.replace(/s$/, '') : periodLabel}) ended with a{' '}
-            <strong style={{ color: '#F87171' }}>negative return (below 0%)</strong> and are not represented in the table above,
-            which only shows {periodLabel} that broke even or gained.
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -168,7 +177,6 @@ export function DiscreteTable({ data, results, onExportData, periodLabel = 'Week
   const pctFiltered = React.useMemo(() => {
     const buckets = new Map<number, number>();
     for (const r of results) {
-      if (r.return_pct < 0) continue;
       const bucketKey = Math.floor(r.return_pct / 0.5);
       buckets.set(bucketKey, (buckets.get(bucketKey) || 0) + 1);
     }
@@ -258,10 +266,10 @@ export function DiscreteTable({ data, results, onExportData, periodLabel = 'Week
         </table>
       </div>
 
-      {hiddenPct > 0 && (
+      {hiddenPct > 0 && mode === 'usd' && (
         <div className="shrink-0 pt-2 text-[10px] leading-relaxed text-[#7C8BA1]">
           <span style={{ color: '#F87171', fontWeight: 700 }}>{hiddenPct.toFixed(1)}%</span> of {periodLabel.toLowerCase()}{' '}
-          {mode === 'usd' ? 'returned below $1,000' : 'had negative returns'} — not displayed
+          returned below $1,000 — not displayed
         </div>
       )}
     </div>
